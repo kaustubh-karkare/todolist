@@ -1,0 +1,9 @@
+Longterm
+	Omega
+2013-09-13
+	Alpha
+	Bravo
+	Charlie
+2013-09-12
+	Delta
+	Echo
