@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-import re, os
+import datetime, re, os
 
 class TaskFile:
 	def __init__(self,datafile):
@@ -24,34 +24,22 @@ class TaskFile:
 	
 	@staticmethod
 	def parse(rawdata):
-		lines = rawdata.split("\n")
-		index, total = 0, len(lines)
 		re_date = re.compile("^[0-9]{4}-[0-9]{2}-[0-9]{2}|Longterm|Periodic$")
-		data = {}
-		while index<total :
-			line = lines[index]
-			index = index + 1
+		data, group = {}, datetime.date.today().strftime("%Y-%m-%d")
+		for line in rawdata.split("\n"):
 			if line.strip() is "": continue
 			date = re_date.match(line)
-			if date is not None:
-				group = data[date.group()] = []
-				# print "Group", date.group()
-				while index<total :
-					line = lines[index]
-					if not line.startswith("\t") and line.strip() is not "": break
-					# print "Task", line[1:]
-					index = index + 1
-					if line.strip() is "": continue
-					group.append(line[1:])
-				continue
-			raise Exception("Invalid Group!",line)
+			if date is not None: group = date.group()
+			elif line.startswith("\t"):
+				if group not in data: data[group] = []
+				data[group].append(line[1:])
 		return data
 	@staticmethod
 	def serialize(data):
 		keys = sorted(data.keys())[::-1]
 		if len(keys)>1 and keys[0] is "Periodic" and keys[1] is "Longterm": keys[0], keys[1] = keys[1], keys[0]
 		rawdata = "\n".join([name+"\n"+"\n".join(["\t"+task for task in data[name]]) for name in keys])+"\n"
-		# print "Serialized:", repr(rawdata)
+		#print "Serialized:", repr(rawdata)
 		return rawdata
 
 x = TaskFile("todolist.txt")
