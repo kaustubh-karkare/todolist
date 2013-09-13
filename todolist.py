@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-import argparse, datetime, itertools, prettytable, re, os, sys
+import argparse, copy, datetime, itertools, prettytable, re, readline, os, sys
 
 class TaskFile:
 	dateformat = "%Y-%m-%d"
@@ -62,17 +62,26 @@ class TaskGroup:
 
 	def add(self,task):
 		self.data.append(task)
-	def delete(self,index):
-		if index<=0 or index>=len(self.data):
-			raise IndexError("Invalid Index")
-		return self.data.pop(index-1)
+	def get(self,index,remove=False):
+		if isinstance(index,Task):
+			i = self.data.index(index)
+			if not remove: return i
+			self.data.pop(i)
+			return i
+		else:
+			index = int(index)
+			if index<=0 or index>len(self.data):
+				raise ValueError("Invalid Index")
+				return self.data.pop(index-1) if remove else self.data[index-1]
+	def delete(self,index): return self.get(index,True)
 
 	def tabulate(self):
-		f = ["ID","Task","Tags","Options"]
+		f = ["ID","Task","Tags","Status"]
 		t = prettytable.PrettyTable(f, padding_width=1)
 		for i in f: t.align[i] = "l"
 		for index, task in enumerate(self.data):
-			t.add_row([index+1 ,task.text, ", ".join(map(lambda x: x[1:], task.tag)), task.opt])
+			if task.opt["comment"]: continue
+			t.add_row([index+1 ,task.text, ", ".join(map(lambda x: x[1:], task.tag)), task.opt["status"] ])
 		return "\n"+t.get_string()+"\n"
 
 	def __iter__(self):
@@ -87,57 +96,120 @@ class TaskGroup:
 	def empty(self):
 		return len(self.data)==0
 	def serialize(self):
-		return self.name+"\n"+"\n".join(["\t"+task.text for task in self.data])
+		return self.name+"\n"+"\n".join(["\t"+task.raw for task in self.data])
 
 class Task:
 	re_tag = re.compile("\\#[^ ]+")
-	re_opt = re.compile("\\$[a-z]+(\\=[^ ]+)?")
-	def __init__(self,text):
-		self.text = text
-		self.tag = self.re_tag.findall(self.text)
-		self.opt = dict([ ((item[0],True) if len(item)==1 else item) for item in self.re_opt.findall(self.text)])
+	re_opt = re.compile("\\$([a-z]+)(?:\\=([^ ]+))?")
+	re_ws = re.compile("\s+")
+	default_options = {
+		"status": "pending",
+		"date": TaskFile.today,
+		"longterm": None,
+		"repeat": None,
+		"comment": None
+	}
 
+	def __init__(self,raw):
+		self.update(raw)
+	def update(self,raw):
+		self.raw = raw
+		self.tag = self.re_tag.findall(self.raw)
+		self.opt = dict(self.default_options, **dict([
+			(item[0],True) if len(item)==1 else item
+				for item in self.re_opt.findall(self.raw)
+			if item[0] in self.default_options] ))
 
-def ap_group(data):
-	if data[0] in ("#",":"): return "#"+data[1:]
-	elif data=="longterm": return "Longterm"
-	elif data=="periodic": return "Periodic"
-	elif data in "today tomorrow yesterday".split():
-		x = datetime.date.today()
-		if data=="yesterday": x -= datetime.timedelta(1)
-		elif data=="tomorrow": x += datetime.timedelta(1)
-		return x.strftime(TaskFile.dateformat)
-	elif TaskFile.re_date.match(data): return data
-	else: raise ValueError("Invalid Group")
+		self.text = raw
+		self.text = self.re_tag.sub("",self.text)
+		self.text = self.re_opt.sub("",self.text)
+		self.text = self.re_ws.sub(" ",self.text)
 
-def confirm(msg="Are you sure you wish to save this change? (yes/no) "):
+def relocate(f,g,t):
+	pass
+
+# Command-Line Option Validators (clov)
+
+class clov:
+	@staticmethod
+	def action(data):
+		if data in "add delete edit list done failed partial".split(): return data;
+		else: return None
+	@staticmethod
+	def group(data):
+		if data[0].startswith(("#",":"),0): return "#"+data[1:]
+		elif data=="longterm": return "Longterm"
+		elif data=="periodic": return "Periodic"
+		elif data in "today tomorrow yesterday".split():
+			x = datetime.date.today()
+			if data=="yesterday": x -= datetime.timedelta(1)
+			elif data=="tomorrow": x += datetime.timedelta(1)
+			return x.strftime(TaskFile.dateformat)
+		elif TaskFile.re_date.match(data): return data
+		else: return None
+	@classmethod
+	def process(self,args):
+		if not args.x: # no arguments
+			args.action = "list"
+			args.group = TaskFile.today
+		elif not args.y: # one argument
+			args.action = self.action(args.x)
+			args.group = TaskFile.today
+			if not args.action:
+				args.action = "list"
+				args.group = self.group(args.x)
+			if not args.group: return None
+		else: # two arguments
+			args.action = clov_action(args.x)
+			if args.action: args.group = clov_group(args.y)
+			else:
+				args.action = self.action(args.y)
+				args.group = self.group(args.x)
+			if not args.action or not args.group: return None
+		return args
+
+# User Interaction Functions
+
+def confirm(msg="Are you sure you wish to save this change?"):
 	while True:
-		x = raw_input(msg)
+		x = raw_input(msg+" (yes/no) ")
 		if x=="yes": return True
 		elif x=="no": return False
+
+def prompt(prompt, prefill=""):
+	readline.set_startup_hook(lambda: readline.insert_text(prefill))
+	try: return raw_input(prompt)
+	finally: readline.set_startup_hook()
 
 def main():
 
 	ap = argparse.ArgumentParser(description="To Do List",epilog="Author: Kaustubh Karkare")
 	ap.add_argument("--datafile", default="todolist.txt", help="Data File Path")
-	ap.add_argument("action", nargs="?", default="list", choices="add delete edit list done failed partial".split())
-	ap.add_argument("group", nargs="?", default=TaskFile.today, type=ap_group, help="Group selector.")
-	ap.add_argument("data", nargs="?", default=1, type=int, help="Index within Group / Task String")
+	ap.add_argument("x", nargs="?", metavar="action", help="The Action to be performed.")
+	ap.add_argument("y", nargs="?", metavar="group", help="The Group to which it must be applied.")
 	args = ap.parse_args(sys.argv[1:])
+	if not clov.process(args): raise Exception("Could not parse Command-Line Options.")
 
 	f = TaskFile(args.datafile)
 	g = f.select(args.group)
-	if args.action=="list":
-		print g.tabulate()
+	_g = copy.deepcopy(g)
+	if args.action!="list": print g.tabulate()
+	if args.action=="list": pass
 	elif args.action=="add":
-		t = Task(args.data)
-		g.add(t)
-		print g.tabulate()
-		if confirm(): f.save()
+		g.add(Task(prompt("Create Task: ")))
+		if confirm("Are you sure you want to create this task?"): f.save()
+		else: g = _g
+	elif args.action=="edit":
+		t = g.get(prompt("Select Task ID for Modification: "))
+		t.update(prompt("Update Task: ",t.raw))
+		relocate(f,g,t) # ensure that the task is part of the appropriate group
+		if confirm("Are you sure you want to update this task?"): f.save()
+		else: g = _g
 	elif args.action=="delete":
-		g.delete(args.data)
-		print g.tabulate()
-		if confirm(): f.save()
+		g.delete(prompt("Select Task ID for Deletion: "))
+		if confirm("Are you sure you want to delete this task?"): f.save()
+		else: g = _g
 	else: print "argparse:", args
+	print g.tabulate()
 
 if __name__ == "__main__": main()
