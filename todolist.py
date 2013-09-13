@@ -2,12 +2,23 @@
 
 import argparse, copy, datetime, itertools, prettytable, re, readline, os, sys
 
+class Tags:
+
+	longterm = "longterm".split()
+	periodic = "everyday weekday weekend monday tuesday wednesday thrusday friday saturday sunday".split()
+	status = "done partial failed".split()
+	random = "hidden"
+	all = list(itertools.chain(longterm, periodic, status, random))
+
 class TaskList:
 
 	dateformat = "%Y-%m-%d"
+	# Today's Date as a String
 	today = datetime.date.today().strftime(dateformat)
-	special = "Longterm Periodic".split()
-	re_date = re.compile("^[0-9]{4}-[0-9]{2}-[0-9]{2}|"+"|".join(special)+"$")
+	# Special Groups
+	special = { "Longterm": Tags.longterm, "Periodic": Tags.periodic }
+	# Group Heading Pattern
+	re_date = re.compile("^[0-9]{4}-[0-9]{2}-[0-9]{2}|"+"|".join(special.keys())+"$")
 
 	def __init__(self,datafile):
 		self.name = datafile
@@ -31,11 +42,13 @@ class TaskList:
 		return result
 
 	def fileload(self):
-		if not os.path.isfile(self.name):
-			raise Exception("Data File does not exist!");
-		f = open(self.name,"r")
-		self.data = self.parse( f.read() )
-		f.close()
+		if os.path.isfile(self.name):
+			f = open(self.name,"r")
+			self.data = self.parse( f.read() )
+			f.close()
+		else:
+			# raise Exception("Data File does not exist!");
+			self.data = {}
 
 	def filesave(self):
 		i = 0
@@ -46,7 +59,8 @@ class TaskList:
 		f = open(name,"w");
 		f.write(self.serialize(self.data))
 		f.close()
-		os.unlink(self.name)
+		if os.path.isfile(self.name):
+			os.unlink(self.name)
 		os.rename(name,self.name)
 	
 	def parse(self, rawdata):
@@ -62,9 +76,7 @@ class TaskList:
 
 	def serialize(self,data):
 		keys = sorted(data.keys())[::-1]
-		temp = list(itertools.takewhile(lambda x: x in self.special, keys))
-		keys = sorted(temp, key = lambda x: self.special.index(x) ) + keys[len(temp):]
-		rawdata = "\n".join([data[name].serialize() for name in keys if not data[name].empty()])+"\n"
+		rawdata = "\n".join([data[name].serialize() for name in keys if not data[name].empty()])
 		return rawdata
 
 class TaskGroup:
@@ -100,12 +112,15 @@ class TaskGroup:
 		return temp
 
 	def tabulate(self):
-		f = ["ID","Task","Tags","Status"]
+		p = 1 if self.name=="Periodic" else 0
+		f = ["ID","Task","Tags","Frequency" if p else "Status"]
 		t = prettytable.PrettyTable(f, padding_width=1)
 		for i in f: t.align[i] = "l"
-		for index, task in enumerate(self.data):
-			if task.opt["comment"]: continue
-			t.add_row([index+1 ,task.text, ", ".join(map(lambda x: x[1:], task.tag)), task.opt["status"] ])
+		for index, task in enumerate(filter(lambda x: "#hidden" not in x.tags, self.data)):
+			if p: status = ", ".join( filter(lambda x: x in Tags.periodic, map(lambda x: x[1:], task.tags)) )
+			else: status = next((x for x in Tags.status if "#"+x in task.tags),"pending")
+			tags = ", ".join( filter(lambda x: x not in Tags.all, map(lambda x: x[1:], task.tags)) )
+			t.add_row([index+1 ,task.text, tags, status ])
 		return "\n"+t.get_string()+"\n"
 
 	def __iter__(self):
@@ -126,16 +141,9 @@ class TaskGroup:
 
 class Task:
 
+	re_ws = re.compile("\s+")
 	re_tag = re.compile("\\#[^ ]+")
-	re_opt = re.compile("\\$([a-z]+)\\=([^ ]+) ?")
-	re_opt_date = re.compile("\\$date\\=[^ ]+ ?")
-	default_options = {
-		"status": "pending",
-		"date": TaskList.today,
-		"longterm": None,
-		"periodic": None,
-		"comment": None
-	}
+	re_date = re.compile("\\#date\\=[0-9]{4}-[0-9]{2}-[0-9]{2}")
 
 	def __init__(self, group, raw):
 		self.group = group
@@ -145,33 +153,38 @@ class Task:
 	def update(self,raw):
 		self.raw = raw
 
-		self.tag = self.re_tag.findall(self.raw) # extract task tags
-		if self.group.name in TaskList.special: pos = [(self.group.name.lower(),True)]
-		else: pos = [("date",self.group.name)]
-		self.opt = dict(self.default_options, **dict( pos +
-			[ (item[0],None if item[1] in ("0","False","No","None") else item[1])
-				for item in self.re_opt.findall(self.raw) if item[0] in self.default_options ]
-			))
-		# remove all tags & options before tabulation
-		self.text = raw
-		self.text = self.re_tag.sub("",self.text)
-		self.text = self.re_opt.sub("",self.text)
-		# ensure that the task is part of the appropriate group
-		gn = self.group.name
+		self.tags = map(str.lower, self.re_tag.findall(self.raw))
+		self.text = self.re_tag.sub("",self.raw)
+		self.text = self.re_ws.sub(" ",self.text).strip()
+
 		tlist = self.group.list
+
+		flag = False # is this a special group
 		for key in TaskList.special:
-			if self.opt[key.lower()] is not None:
-				if self.group.name!=key:
-					self.group.delete(self)
-					self.group = tlist.get(key)
-					self.group.add(self)
-				break
-		else:
-			if self.opt["date"]!=self.group.name:
+			if flag: break
+			for val in TaskList.special[key]:
+				if flag: break
+				if "#"+val.lower() in self.tags:
+					flag = True
+					if self.group.name!=key:
+						self.group.delete(self)
+						self.group = tlist.get(key)
+						self.group.add(self)
+
+		# if this is a general task but with date specified
+		if not flag:
+			temp = filter(lambda x: self.re_date.match(x), self.tags)
+			group = temp[-1][6:] if len(temp)>0 else self.group.name
+			if group in TaskList.special: group = TaskList.today
+			if group!=self.group.name:
 				self.group.delete(self)
-				self.group = tlist.get(self.opt["date"])
+				self.group = tlist.get(group)
 				self.group.add(self)
-		self.raw = self.re_opt_date.sub("",self.raw)
+
+		# remove all date tags
+		self.raw = self.re_date.sub("",self.raw)
+		self.raw = self.re_ws.sub(" ",self.raw).strip()
+		self.tags = filter(lambda x: not self.re_date.match(x), self.tags)
 
 # Command-Line Option Validators (clov)
 
@@ -235,8 +248,11 @@ def main():
 	if not clov.process(args): raise Exception("Could not parse Command-Line Options.")
 
 	l = TaskList(args.datafile)
+	l.filesave()
+
 	g = l.select(args.group)
 	_g = copy.deepcopy(g)
+
 	if args.action!="list": print g.tabulate()
 	if args.action=="list": pass
 	elif args.action=="add":

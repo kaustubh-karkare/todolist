@@ -1,28 +1,12 @@
 
 Tagging
 	The "#" character can be used to tag a task.
-	re.findall("(?<!\\\\)#[^ ]+",task)
-
-Special Options (only the last appearances of each option are considered)
-	$longterm
-		These tasks are do not have specific deadlines and serve as reminders as to what you are working for.
-		These goals are listed under a separate category.
-	$status=<str> (failed/pending/partial/done, default=pending)
-		The current status of the task.
-	$required
-		This task is not limited to a specific time frame and MUST be completed, thereby activating the "overdue" status.
-	$periodic=xxxxxxx (week starts from monday; each x can be 1 or 0)
-		Specifies on what days of the week this goal is to be repeated.
-		These tasks are listed under a separate category.
-		At the first access on each enabled day, a duplicate without this option is added to that day's list.
-		The last script access timestamp is recoreded in the data-file for this purpose.
-	$comment
-		This task is ignored by all actions & interfaces and can only be accessed by directly accessing the text file.
-	$date=yyyy-mm-dd (default=today)
-		This option is removed from the task list as soon as encountered and the task is shifted to the appropriate date.
-		If this option appears along with the $repeat option, it is ignored entirely.
-	$deadline=yyyy-mm-dd (default=$date)
-		The failure of this task is delayed until this date passes.
+	A number of special tags are defined (in place of options):
+		#done, #failed, #partial
+		#longterm
+		#everyday, #weekdays, #weekends, #monday, #tuesday, ...
+		#date=yyyy-mm-dd, #deadline=yyyy-mm-dd
+		#hidden
 
 Interface
 	Command Line
