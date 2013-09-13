@@ -10,15 +10,35 @@ class Tags:
 	random = "hidden"
 	all = list(itertools.chain(longterm, periodic, status, random))
 
-class TaskList:
+class Date:
 
-	dateformat = "%Y-%m-%d"
-	# Today's Date as a String
-	today = datetime.date.today().strftime(dateformat)
+	_dateformat = "%Y-%m-%d"
+	_today = datetime.date.today()
+	_1day = datetime.timedelta(1)
+
+	today = _today.strftime(_dateformat)
+	yesterday = (_today-_1day).strftime(_dateformat)
+	tomorrow = (_today+_1day).strftime(_dateformat)
+
+	pattern = "[0-9]{4}-[0-9]{2}-[0-9]{2}"
+
+	@staticmethod
+	def translate(data):
+		if data=="today": return Date.today
+		elif data=="yesterday": return Date.yesterday
+		elif data=="tomorrow": return Date.tomorrow
+	@staticmethod
+	def recognized():
+		return "today yesterday tomorrow".split()
+
+class TaskList:
+	
 	# Special Groups
 	special = { "Longterm": Tags.longterm, "Periodic": Tags.periodic }
 	# Group Heading Pattern
-	re_date = re.compile("^[0-9]{4}-[0-9]{2}-[0-9]{2}|"+"|".join(special.keys())+"$")
+	re_date = re.compile("^"+Date.pattern+"|"+"|".join(special.keys())+"$")
+	# Last Run Data
+	re_last = re.compile("^# ("+Date.pattern+")$")
 
 	def __init__(self,datafile):
 		self.name = datafile
@@ -65,8 +85,13 @@ class TaskList:
 	
 	def parse(self, rawdata):
 		self.data = {}
-		group = self.today
-		for line in rawdata.split("\n"):
+		group = Date.today
+		lines = rawdata.split("\n")
+		last = self.re_last.match(lines[-1])
+		if last:
+			lines.pop()
+			self.lastrun = last.group(1)
+		for line in lines:
 			if line.strip()=="": continue
 			date = self.re_date.match(line)
 			if date!=None: group = date.group()
@@ -77,7 +102,7 @@ class TaskList:
 	def serialize(self,data):
 		keys = sorted(data.keys())[::-1]
 		rawdata = "\n".join([data[name].serialize() for name in keys if not data[name].empty()])
-		return rawdata
+		return rawdata+"\n\n# "+Date.today
 
 class TaskGroup:
 
@@ -92,19 +117,22 @@ class TaskGroup:
 	def add(self,task):
 		self.data.append(task)
 
-	def get(self,index,remove=False):
-		if isinstance(index,Task):
-			if index not in self.data: return None
-			i = self.data.index(index)
-			if not remove: return i
+	def get(self,data,remove=False):
+		if isinstance(data,Task): # task -> index
+			task = data
+			if task not in self.data:
+				raise Exception("TaskGroup.get.unknown-value-1")
+			index = self.data.index(task)
+			if not remove: return index
 			else:
-				self.data.pop(i)
-				return i
-		else:
-			index = int(index)
+				self.data.pop(index)
+				return index
+		else: # index -> task
+			index = int(data)
 			if index<=0 or index>len(self.data):
-				raise ValueError("Invalid Index")
+				raise Exception("TaskGroup.get.unknown-value-2")
 			return self.data.pop(index-1) if remove else self.data[index-1]
+
 	def delete(self,index):
 		temp = self.get(index,True)
 		if len(self.data)==0:
@@ -112,16 +140,16 @@ class TaskGroup:
 		return temp
 
 	def tabulate(self):
-		p = 1 if self.name=="Periodic" else 0
-		f = ["ID","Task","Tags","Frequency" if p else "Status"]
-		t = prettytable.PrettyTable(f, padding_width=1)
-		for i in f: t.align[i] = "l"
+		t = 2 if self.name=="Longterm" else 1 if self.name=="Periodic" else 0
+		fields = ["ID","Task","Tags",["Status","Frequency","Status"][t]]
+		table = prettytable.PrettyTable(fields, padding_width=1)
+		for i in fields: table.align[i] = "l"
 		for index, task in enumerate(filter(lambda x: "#hidden" not in x.tags, self.data)):
-			if p: status = ", ".join( filter(lambda x: x in Tags.periodic, map(lambda x: x[1:], task.tags)) )
-			else: status = next((x for x in Tags.status if "#"+x in task.tags),"pending")
+			if t==1: status = ", ".join( filter(lambda x: x in Tags.periodic, map(lambda x: x[1:], task.tags)) )
+			else: status = next((x for x in Tags.status if "#"+x in task.tags),"pending") # first match
 			tags = ", ".join( filter(lambda x: x not in Tags.all, map(lambda x: x[1:], task.tags)) )
-			t.add_row([index+1 ,task.text, tags, status ])
-		return "\n"+t.get_string()+"\n"
+			table.add_row([index+1 ,task.text, tags, status ])
+		return "\n"+table.get_string()+"\n"
 
 	def __iter__(self):
 		self.index = 0
@@ -143,7 +171,7 @@ class Task:
 
 	re_ws = re.compile("\s+")
 	re_tag = re.compile("\\#[^ ]+")
-	re_date = re.compile("\\#date\\=[0-9]{4}-[0-9]{2}-[0-9]{2}")
+	re_date = re.compile("\\#date\\=(?:"+Date.pattern+"|"+"|".join(Date.recognized())+")")
 
 	def __init__(self, group, raw):
 		self.group = group
@@ -175,7 +203,8 @@ class Task:
 		if not flag:
 			temp = filter(lambda x: self.re_date.match(x), self.tags)
 			group = temp[-1][6:] if len(temp)>0 else self.group.name
-			if group in TaskList.special: group = TaskList.today
+			if Date.translate(group): group = Date.translate(group)
+			elif group in TaskList.special: group = Date.today
 			if group!=self.group.name:
 				self.group.delete(self)
 				self.group = tlist.get(group)
@@ -197,21 +226,17 @@ class clov:
 	def group(data):
 		if data[0].startswith(("#",":"),0): return "#"+data[1:]
 		elif data.title() in TaskList.special: return data.title()
-		elif data in "today tomorrow yesterday".split():
-			x = datetime.date.today()
-			if data=="yesterday": x -= datetime.timedelta(1)
-			elif data=="tomorrow": x += datetime.timedelta(1)
-			return x.strftime(TaskList.dateformat)
+		elif Date.translate(data): return Date.translate(data)
 		elif TaskList.re_date.match(data): return data
 		else: return None
 	@classmethod
 	def process(self,args):
 		if not args.x: # no arguments
 			args.action = "list"
-			args.group = TaskList.today
+			args.group = Date.today
 		elif not args.y: # one argument
 			args.action = self.action(args.x)
-			args.group = TaskList.today
+			args.group = Date.today
 			if not args.action:
 				args.action = "list"
 				args.group = self.group(args.x)
@@ -262,7 +287,9 @@ def main():
 	elif args.action=="edit":
 		t = g.get(prompt("Select Task ID for Modification: "))
 		t.update(prompt("Update Task: ",t.raw))
-		if confirm("Are you sure you want to update this task?"): l.filesave()
+		if confirm("Are you sure you want to update this task?"):
+			l.filesave()
+			g = t.group
 		else: g = _g
 	elif args.action=="delete":
 		g.delete(prompt("Select Task ID for Deletion: "))
