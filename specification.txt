@@ -41,6 +41,8 @@ Interface
 			reset
 		<group> = date (format: yyyy-mm-dd) / tag (starting with a "#") / "longterm" / "repeated" / "today" / "tomorrow" / "yesterday"
 		All actions require confirmation (which is essential wherever <id> is specified, since it may have changed since last script run).
+		ASCII Table Formatting:
+			easy_install prettytable
 	Web browser # incomplete
 		Types
 			A single page that contains all the necessary information.
