@@ -2,31 +2,16 @@
 Tagging
 	The "#" character can be used to tag a task.
 	A number of special tags are defined (in place of options):
-		#done, #failed, #partial
-		#longterm
-		#everyday, #weekdays, #weekends, #monday, #tuesday, ...
-		#date=yyyy-mm-dd, #deadline=yyyy-mm-dd
-		#hidden
+		Status: #done, #failed, #partial
+		Periodic: #everyday, #weekday, #weekend, #monday, #tuesday, ...
+		Date: #date=yyyy-mm-dd, #deadline=yyyy-mm-dd
+		Misc: #hidden, #essential
 
 Interface
 	Command Line
-		The default data-file name is "todolist.txt". The data-file must be human readable.
-		Options:
-			data: name of the file to read data from
-		Actions:
-			add <task-str>
-			list <group> # if group name is omitted, defaults to "today"
-			del <group> <id>
-			edit <group> <id>
-			done <group> <id>
-			fail <group> <id>
-			part <group> <id>
-			backup
-			reset
-		<group> = date (format: yyyy-mm-dd) / tag (starting with a "#") / "longterm" / "repeated" / "today" / "tomorrow" / "yesterday"
-		All actions require confirmation (which is essential wherever <id> is specified, since it may have changed since last script run).
-		ASCII Table Formatting:
-			easy_install prettytable
+		The data-file must be human readable. Default = "todolist.txt"
+		Usage: todo [list|add|edit|delete] [<date>|periodic]
+		ASCII Table Formatting: easy_install prettytable
 	Web browser # incomplete
 		Types
 			A single page that contains all the necessary information.
@@ -34,3 +19,8 @@ Interface
 				Implementation: ajax/http-rest, file-watch
 		Implementation
 			jQuery, Bootstrap
+
+Todo
+	#essential : Non-Optional Task (will continue to appear until completed)
+		A special category meant for high priority tasks, that must be completed at all costs.
+	#deadline : Will appear until deadline, after which it is considered #failed.
