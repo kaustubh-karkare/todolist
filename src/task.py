@@ -11,8 +11,6 @@ essential = "essential"
 status = "done failed".split()
 
 
-##################################################
-
 
 prefix = "#"
 prefixlen = len(prefix)
@@ -74,8 +72,8 @@ class Task:
 		return self.__class__( " ".join(temp) )
 
 
-##################################################
 
+#!eof
 
 def test():
 	from datetime import date
