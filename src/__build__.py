@@ -1,7 +1,8 @@
+#!/usr/bin/python
 
 order = ["help","date","task","taskgroup"]
 
-import argparse, datetime, os, subprocess, sys
+import argparse, datetime, os, subprocess, sys, threading
 
 __dir__ = os.path.join(*os.path.split(__file__)[:-1]) + os.sep
 
@@ -21,13 +22,21 @@ def build(target):
 		fname = __dir__ + name + ".py"
 		if not os.path.isfile(fname): continue
 		with open(fname) as f:
+			# wrap the file contents within a function
 			code += "def exports():\n\texports = {}\n"
 			for line in f:
+				# stop reading at pattern & skip blank lines
 				if line.startswith("#!eof"): break
 				elif line.strip()=="": continue
+				# remember imported modules
 				elif line.startswith("import "):
 					modules.extend( i.strip() for i in line[7:].split(",") )
+				# prevent premature return of wrapper function
+				elif code.startswith("return "):
+					raise SyntaxError("'return' outside function")
+				# prefix \t & suffix \n to each line
 				else: code += "\t"+line+("" if line.endswith("\n") else "\n")
+			# update the global namespace with exports
 			code += "\treturn exports\ndefine(exports())\n"
 	if len(modules): print >>target, "import" , ", ".join(set(modules))
 	print >>target, code
@@ -36,6 +45,32 @@ def build(target):
 def now():
 	return datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S #")
 
+def debounce(wait,collect=False):
+	def decorator(fn):
+		def debounced(*_args, **_kwargs):
+			# javascript/arguments.caller
+			self = debounced
+			# cancel waiting thread
+			if self.lock: self.thread.join()
+			else: self.thread.cancel()
+			# collect function arguments
+			if not collect: self.args, self.kwargs = _args, _kwargs
+			else: self.args.extend(_args), self.kwargs.update(_kwargs)
+			# define and launch thread
+			def wrapper():
+				self.lock = True
+				fn(*self.args, **self.kwargs)
+				self.args, self.kwargs = [], {}
+				self.lock = False
+			self.thread = threading.Timer(wait, wrapper)
+			self.thread.start()
+		# initialize thread, lock & collections
+		debounced.lock = False
+		debounced.thread = threading.Timer(0, debounced)
+		if collect: debounced.args, debounced.kwargs = [], {}
+		return debounced
+	return decorator
+
 if __name__=="__main__":
 
 	ap = argparse.ArgumentParser()
@@ -43,26 +78,20 @@ if __name__=="__main__":
 	ap.add_argument("--loop", action="store_true", help="Starts an infinite loop to continuously watch the source directory and rebuild when changes are detected.")
 	args = ap.parse_args(sys.argv[1:])
 
-	print now(), "Initial Build ...",
 	build(args.target) # at least once
-	print "done."
+	print now(), "Initial Build"
 
 	if args.loop:
 
 		import pyinotify
 
-		events = {
-			"IN_CREATE": "creation",
-			"IN_MODIFY": "modification",
-			"IN_DELETE": "deletion",
-		}
+		events = "IN_CREATE IN_MODIFY IN_DELETE".split()
 
-		def handler(event):
-			if not event.name.endswith(".py"): return
-			print now(), "Rebuilding due to", events[event.maskname],
-			print "of", event.name, "...",
-			build(args.target)
-			print "done."
+		@debounce(1,1)
+		def handler(*events):
+			if any(e.name.endswith(".py") for e in events):
+				build(args.target)
+				print now(), "Rebuilt", "("+", ".join(set(e.name for e in events))+")"
 
 		mask = reduce( (lambda x,y: x|y), (getattr(pyinotify,i) for i in events) )
 

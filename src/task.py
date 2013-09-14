@@ -10,13 +10,13 @@ for index,name in enumerate("monday tuesday wednesday thursday friday saturday s
 essential = "essential"
 status = "done failed".split()
 
-
-
 prefix = "#"
 prefixlen = len(prefix)
 
 def istagstr(str): return len(str)>0 and len(str.split())==1
 def istag(tag): return tag.startswith(prefix) and istagstr(tag[prefixlen:])
+
+# end of tag related declarations
 
 class Task:
 
