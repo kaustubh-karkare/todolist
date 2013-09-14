@@ -34,9 +34,10 @@ class Task:
 		elif any(i in periodic for i in self.tags):
 			self.tags = [i for i in self.tags if i not in status]
 		elif any(i in status for i in self.tags):
-			self.tags.remove(essential)
+			if essential in self.tags: self.tags.remove(essential)
 		if len(self.tags)<temp:
-			temp = [i for i in self.raw.split() if not istag(i) or i[prefixlen:] in self.tags]
+			temp = [i for i in self.raw.split() \
+				if not istag(i) or i[prefixlen:] in self.tags]
 			self.raw = " ".join(temp)
 
 	def text(self):
@@ -68,10 +69,11 @@ class Task:
 	def iteration(self,date):
 		tags = filter(lambda tag: tag in periodic, self.tags)
 		if not any(periodic[name](date) for name in tags): return
-		temp = [i for i in self.raw.split() if not istag(i) or i[prefixlen:] not in tags]
+		temp = [i for i in self.raw.split() \
+			if not istag(i) or i[prefixlen:] not in tags]
 		return self.__class__( " ".join(temp) )
 
-
+exports["Task"] = Task
 
 #!eof
 

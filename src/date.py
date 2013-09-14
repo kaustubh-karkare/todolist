@@ -1,4 +1,6 @@
 
+import datetime, re
+
 class Date:
 
 	relative = {
@@ -34,3 +36,5 @@ class Date:
 	def translate(self,x):
 		if x in self.__relative: return self.__relative[x]
 		elif self.regexp.match(x): return x
+
+exports["Date"] = Date
