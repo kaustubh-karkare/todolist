@@ -1,16 +1,15 @@
-#!/usr/bin/python
 
 order = ["help","date","task","taskgroup"]
 
-import argparse, datetime, os, subprocess, sys, threading
+import argparse, datetime, os, sys
+sys.dont_write_bytecode = True # prevent creation of *.pyc & *.pyo files
 
 __dir__ = os.path.join(*os.path.split(__file__)[:-1]) + os.sep
 
 code_init = """#!/usr/bin/python
 def define(scope):
 	def actual(exports):
-		for key in exports:
-			scope[key] = exports[key]
+		scope.update(exports)
 	return actual
 define = define(vars())
 """
@@ -45,32 +44,6 @@ def build(target):
 def now():
 	return datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S #")
 
-def debounce(wait,collect=False):
-	def decorator(fn):
-		def debounced(*_args, **_kwargs):
-			# javascript/arguments.caller
-			self = debounced
-			# cancel waiting thread
-			if self.lock: self.thread.join()
-			else: self.thread.cancel()
-			# collect function arguments
-			if not collect: self.args, self.kwargs = _args, _kwargs
-			else: self.args.extend(_args), self.kwargs.update(_kwargs)
-			# define and launch thread
-			def wrapper():
-				self.lock = True
-				fn(*self.args, **self.kwargs)
-				self.args, self.kwargs = [], {}
-				self.lock = False
-			self.thread = threading.Timer(wait, wrapper)
-			self.thread.start()
-		# initialize thread, lock & collections
-		debounced.lock = False
-		debounced.thread = threading.Timer(0, debounced)
-		if collect: debounced.args, debounced.kwargs = [], {}
-		return debounced
-	return decorator
-
 if __name__=="__main__":
 
 	ap = argparse.ArgumentParser()
@@ -83,19 +56,16 @@ if __name__=="__main__":
 
 	if args.loop:
 
-		import pyinotify
+		import __watch as watch
 
-		events = "IN_CREATE IN_MODIFY IN_DELETE".split()
-
-		@debounce(1,1)
+		@watch.debounce(1,1)
 		def handler(*events):
-			if any(e.name.endswith(".py") for e in events):
+
+			if any(e.path.endswith(".py") for e in events \
+				if not os.path.basename(e.path).startswith("__")):
+
 				build(args.target)
-				print now(), "Rebuilt", "("+", ".join(set(e.name for e in events))+")"
+				files = (os.path.relpath(i,__dir__) for i in set(e.path for e in events))
+				print now(), "Rebuilt due to changes affecting", ", ".join(files)
 
-		mask = reduce( (lambda x,y: x|y), (getattr(pyinotify,i) for i in events) )
-
-		wm = pyinotify.WatchManager()
-		notifier = pyinotify.Notifier(wm, handler)
-		wm.add_watch(__dir__, mask, rec=True)
-		notifier.loop()
+		watch.start(__dir__,"create modify delete".split(),handler)
