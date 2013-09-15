@@ -1,12 +1,10 @@
 
-order = ["help","date","task","taskgroup"]
-
-import argparse, datetime, os, sys
+import argparse, copy, datetime, os, sys
 sys.dont_write_bytecode = True # prevent creation of *.pyc & *.pyo files
 
 __dir__ = os.path.join(*os.path.split(__file__)[:-1]) + os.sep
 
-code_init = """#!/usr/bin/python
+__codeinit = """#!/usr/bin/python
 def define(scope):
 	def actual(exports):
 		scope.update(exports)
@@ -14,34 +12,65 @@ def define(scope):
 define = define(vars())
 """
 
-def build(target):
-	target, modules, code = open(target,"w"), [], ""
-	print >>target, code_init,
-	for name in order:
-		fname = __dir__ + name + ".py"
-		if not os.path.isfile(fname): continue
-		with open(fname) as f:
+def __toposort(graph,preserve=True):
+	# Topological Sort, graph = dict of lists
+	if preserve: graph = copy.deepcopy(graph)
+	result = []
+	while graph: # not empty
+		change = False
+		for key in graph:
+			if len(graph[key])==0:
+				del graph[key]
+				for key2 in graph:
+					if key in graph[key2]:
+						graph[key2].remove(key)
+				result.append(key)
+				change = True
+				break
+		if not change:
+			raise Exception("Cyclic Dependency!")
+	return result
+
+def __build(dirpath,target):
+	target, modules = open(target,"w"), []
+	depends, code = {}, {}
+	print >>target, __codeinit,
+	for fname in os.listdir(dirpath):
+		fpath = os.path.join(dirpath,fname)
+		# skip all hidden, non-python & non-existant files
+		if fname.startswith("__") or \
+			not fname.endswith(".py") or \
+			not os.path.isfile(fpath):
+			continue
+		# for the require statement, which uses filenames (with extension)
+		name = fname[:-3]
+		with open(fpath) as f:
+			# initialize the dependencies list
+			depends[name] = []
 			# wrap the file contents within a function
-			code += "def exports():\n\texports = {}\n"
+			code[name] = "def exports():\n\texports = {}\n"
 			for line in f:
 				# stop reading at pattern & skip blank lines
 				if line.startswith("#!eof"): break
 				elif line.strip()=="": continue
-				# remember imported modules
+				# remember imported external modules
 				elif line.startswith("import "):
 					modules.extend( i.strip() for i in line[7:].split(",") )
+				# remember required internal modules
+				elif line.startswith("require "):
+					depends[name].extend( i.strip() for i in line[8:].split(",") )
 				# prevent premature return of wrapper function
-				elif code.startswith("return "):
+				elif line.startswith("return "):
 					raise SyntaxError("'return' outside function")
 				# prefix \t & suffix \n to each line
-				else: code += "\t"+line+("" if line.endswith("\n") else "\n")
+				else: code[name] += "\t"+line+("" if line.endswith("\n") else "\n")
 			# update the global namespace with exports
-			code += "\treturn exports\ndefine(exports())\n"
+			code[name] += "\treturn exports\ndefine(exports())\n"
 	if len(modules): print >>target, "import" , ", ".join(set(modules))
-	print >>target, code
+	print >>target, "".join(code[name] for name in __toposort(depends,0))
 	target.close()
 
-def now():
+def __now():
 	return datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S #")
 
 if __name__=="__main__":
@@ -50,22 +79,23 @@ if __name__=="__main__":
 	ap.add_argument("target", help="The target file to which all code will be written.")
 	ap.add_argument("--loop", action="store_true", help="Starts an infinite loop to continuously watch the source directory and rebuild when changes are detected.")
 	args = ap.parse_args(sys.argv[1:])
+	build = lambda: __build(__dir__, args.target)
 
-	build(args.target) # at least once
-	print now(), "Initial Build"
+	build() # at least once
+	print __now(), "Initial Build"
 
 	if args.loop:
 
-		import __watch as watch
+		import __watch
 
-		@watch.debounce(1,1)
+		@__watch.debounce(1,1)
 		def handler(*events):
 
 			if any(e.path.endswith(".py") for e in events \
 				if not os.path.basename(e.path).startswith("__")):
 
-				build(args.target)
+				build()
 				files = (os.path.relpath(i,__dir__) for i in set(e.path for e in events))
-				print now(), "Rebuilt due to changes affecting", ", ".join(files)
+				print __now(), "Rebuilt due to changes affecting", ", ".join(files)
 
-		watch.start(__dir__,"create modify delete".split(),handler)
+		__watch.start(__dir__,"create modify delete".split(),handler)
