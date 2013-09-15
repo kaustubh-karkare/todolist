@@ -27,7 +27,7 @@ def __toposort(graph,preserve=True):
 			raise Exception("Cyclic Dependency!")
 	return result
 
-__codeinit = """#!/usr/bin/python
+__prefix = """#!/usr/bin/python
 def define(scope):
 	def actual(exports):
 		scope.update(exports)
@@ -35,11 +35,14 @@ def define(scope):
 define = define(vars())
 """
 
+__suffix = """
+"""
+
 def __build(dirpath,target):
 
 	target, modules = open(target,"w"), []
 	depends, code = {}, {}
-	print >>target, __codeinit,
+	print >>target, __prefix,
 
 	for fname in os.listdir(dirpath):
 		fpath = os.path.join(dirpath,fname)
@@ -75,7 +78,7 @@ def __build(dirpath,target):
 			code[name] += "\treturn exports\ndefine(exports())\n"
 
 	if len(modules): print >>target, "import" , ", ".join(set(modules))
-	print >>target, "".join(code[name] for name in __toposort(depends,0))
+	print >>target, "".join(code[name] for name in __toposort(depends,0)), __suffix
 	target.close()
 
 def __now():
@@ -90,9 +93,10 @@ if __name__=="__main__":
 
 	build = lambda: __build(__dir__, args.target)
 	build() # at least once
-	print __now(), "Initial Build"
 
 	if args.loop:
+
+		print __now(), "Initial Build"
 
 		import __watch
 

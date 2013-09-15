@@ -25,10 +25,11 @@ class Date:
 		elif self.regexp.match(today):
 			datetime.date(*map(int,today.split("-")))
 
+		self.today = self.date.strftime(self.format)
+
 		for word in self.relative:
 			temp = self.date + self.relative[word] * self.__1day
 			self.__relative[word] = temp.strftime(self.format)
-			self.__setattr__(word, self.__relative[word])
 
 	def __valid(self,x):
 		return x in self.relative or self.regexp.match(x) is not None

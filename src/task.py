@@ -44,10 +44,12 @@ class Task:
 		"Returns the task-string with all tags removed."
 		return " ".join(word for word in self.raw.split() if not istag(word))
 
+	sg = ["Essential","Periodic"] # special group names
+
 	def group(self,today):
 		"Returns the group this task should be a part of."
-		if essential in self.tags: return "Essential"
-		elif any([i in self.tags for i in periodic]): return "Periodic"
+		if essential in self.tags: return sg[0]
+		elif any([i in self.tags for i in periodic]): return sg[1]
 		else:
 			gen = (i[5:] for i in self.tags if i.startswith("date="))
 			return next( gen, today )
