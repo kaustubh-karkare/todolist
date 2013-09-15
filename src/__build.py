@@ -1,16 +1,12 @@
 
 import argparse, copy, datetime, os, sys
-sys.dont_write_bytecode = True # prevent creation of *.pyc & *.pyo files
 
-__dir__ = os.path.join(*os.path.split(__file__)[:-1]) + os.sep
+# prevent creation of *.pyc & *.pyo files
+sys.dont_write_bytecode = True
 
-__codeinit = """#!/usr/bin/python
-def define(scope):
-	def actual(exports):
-		scope.update(exports)
-	return actual
-define = define(vars())
-"""
+# obtain relative path to container directory
+__dir__ = os.path.join(*os.path.split(__file__)[:-1]) \
+	if os.path.basename(__file__)!=__file__ else "."
 
 def __toposort(graph,preserve=True):
 	# Topological Sort, graph = dict of lists
@@ -31,10 +27,20 @@ def __toposort(graph,preserve=True):
 			raise Exception("Cyclic Dependency!")
 	return result
 
+__codeinit = """#!/usr/bin/python
+def define(scope):
+	def actual(exports):
+		scope.update(exports)
+	return actual
+define = define(vars())
+"""
+
 def __build(dirpath,target):
+
 	target, modules = open(target,"w"), []
 	depends, code = {}, {}
 	print >>target, __codeinit,
+
 	for fname in os.listdir(dirpath):
 		fpath = os.path.join(dirpath,fname)
 		# skip all hidden, non-python & non-existant files
@@ -44,6 +50,7 @@ def __build(dirpath,target):
 			continue
 		# for the require statement, which uses filenames (with extension)
 		name = fname[:-3]
+
 		with open(fpath) as f:
 			# initialize the dependencies list
 			depends[name] = []
@@ -66,6 +73,7 @@ def __build(dirpath,target):
 				else: code[name] += "\t"+line+("" if line.endswith("\n") else "\n")
 			# update the global namespace with exports
 			code[name] += "\treturn exports\ndefine(exports())\n"
+
 	if len(modules): print >>target, "import" , ", ".join(set(modules))
 	print >>target, "".join(code[name] for name in __toposort(depends,0))
 	target.close()
@@ -79,8 +87,8 @@ if __name__=="__main__":
 	ap.add_argument("target", help="The target file to which all code will be written.")
 	ap.add_argument("--loop", action="store_true", help="Starts an infinite loop to continuously watch the source directory and rebuild when changes are detected.")
 	args = ap.parse_args(sys.argv[1:])
-	build = lambda: __build(__dir__, args.target)
 
+	build = lambda: __build(__dir__, args.target)
 	build() # at least once
 	print __now(), "Initial Build"
 
