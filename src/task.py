@@ -24,54 +24,62 @@ class Task:
 		self.update(raw)
 
 	def update(self,raw):
-		self.raw = raw
-		self.tags = filter( istag, self.raw.split() )
-		self.tags = [tag[prefixlen:] for tag in self.tags]
+		self.__raw = raw
+		self.__tags = filter( istag, self.__raw.split() )
+		self.__tags = [tag[prefixlen:] for tag in self.__tags]
 
-		temp = len(self.tags)
-		if essential in self.tags:
-			self.tags = [i for i in self.tags if i not in periodic]
-		elif any(i in periodic for i in self.tags):
-			self.tags = [i for i in self.tags if i not in status]
-		elif any(i in status for i in self.tags):
-			if essential in self.tags: self.tags.remove(essential)
-		if len(self.tags)<temp:
-			temp = [i for i in self.raw.split() \
-				if not istag(i) or i[prefixlen:] in self.tags]
-			self.raw = " ".join(temp)
+		temp = len(self.__tags)
+		if essential in self.__tags:
+			self.__tags = [i for i in self.__tags if i not in periodic]
+		elif any(i in periodic for i in self.__tags):
+			self.__tags = [i for i in self.__tags if i not in status]
+		elif any(i in status for i in self.__tags):
+			if essential in self.__tags: self.__tags.remove(essential)
+		if len(self.__tags)<temp:
+			temp = [i for i in self.__raw.split() \
+				if not istag(i) or i[prefixlen:] in self.__tags]
+			self.__raw = " ".join(temp)
+
+	def __eq__(self,other): return isinstance(other,self.__class__) and self.__raw==other.__raw
+	def __ne__(self,other): return not self.__eq__(other)
+	def __str__(self): return self.__raw
+	def __contains__(self,word): return isinstance(word,str) and word.lower() in self.__raw.lower()
 
 	def text(self):
 		"Returns the task-string with all tags removed."
-		return " ".join(word for word in self.raw.split() if not istag(word))
+		return " ".join(word for word in self.__raw.split() if not istag(word))
 
 	sg = ["Essential","Periodic"] # special group names
 
 	def group(self,today):
 		"Returns the group this task should be a part of."
-		if essential in self.tags: return sg[0]
-		elif any([i in self.tags for i in periodic]): return sg[1]
+		if essential in self.__tags: return sg[0]
+		elif any([i in self.__tags for i in periodic]): return sg[1]
 		else:
-			gen = (i[5:] for i in self.tags if i.startswith("date="))
+			gen = (i[5:] for i in self.__tags if i.startswith("date="))
 			return next( gen, today )
 
+	def tag_list(self):
+		return self.__tags
+
 	def tag_add(self,tag):
-		if istagstr(tag) and tag not in self.tags:
-			self.update( " ".join(self.raw.split()+[prefix+tag]) )
+		if istagstr(tag) and tag not in self.__tags:
+			self.update( " ".join(self.__raw.split()+[prefix+tag]) )
 			return True
 		return False
 
 	def tag_delete(self,tag):
-		if istagstr(tag) and tag in self.tags:
+		if istagstr(tag) and tag in self.__tags:
 			tag = prefix + tag # eliminates recomputation
-			temp = [i for i in self.raw.split() if i!=tag]
+			temp = [i for i in self.__raw.split() if i!=tag]
 			self.update( " ".join(temp) )
 			return True
 		return False
 
 	def iteration(self,date):
-		tags = filter(lambda tag: tag in periodic, self.tags)
+		tags = filter(lambda tag: tag in periodic, self.__tags)
 		if not any(periodic[name](date) for name in tags): return
-		temp = [i for i in self.raw.split() \
+		temp = [i for i in self.__raw.split() \
 			if not istag(i) or i[prefixlen:] not in tags]
 		return self.__class__( " ".join(temp) )
 
