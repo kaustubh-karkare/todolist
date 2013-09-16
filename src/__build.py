@@ -39,7 +39,7 @@ __suffix = """
 if "main" in dir() and "__call__" in dir(main): main()
 """
 
-def __build(dirpath,target):
+def build(dirpath,target):
 
 	target, modules = open(target,"w"), []
 	depends, code = {}, {}
@@ -83,9 +83,6 @@ def __build(dirpath,target):
 	print >>target, "".join(code[name] for name in __toposort(depends,0)), __suffix
 	target.close()
 
-def __now():
-	return datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S #")
-
 if __name__=="__main__":
 
 	ap = argparse.ArgumentParser()
@@ -93,23 +90,4 @@ if __name__=="__main__":
 	ap.add_argument("--loop", action="store_true", help="Starts an infinite loop to continuously watch the source directory and rebuild when changes are detected.")
 	args = ap.parse_args(sys.argv[1:])
 
-	build = lambda: __build(__dir__, args.target)
-	build() # at least once
-
-	if args.loop:
-
-		print __now(), "Initial Build"
-
-		import __watch
-
-		@__watch.debounce(1,1)
-		def handler(*events):
-
-			if any(e.path.endswith(".py") for e in events \
-				if not os.path.basename(e.path).startswith("__")):
-
-				build()
-				files = (os.path.relpath(i,__dir__) for i in set(e.path for e in events))
-				print __now(), "Rebuilt due to changes affecting", ", ".join(files)
-
-		__watch.start(__dir__,"create modify delete".split(),handler)
+	build(__dir__, args.target)
