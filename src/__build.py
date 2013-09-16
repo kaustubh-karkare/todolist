@@ -36,6 +36,7 @@ define = define(vars())
 """
 
 __suffix = """
+if "main" in dir() and "__call__" in dir(main): main()
 """
 
 def __build(dirpath,target):
@@ -60,9 +61,10 @@ def __build(dirpath,target):
 			# wrap the file contents within a function
 			code[name] = "def exports():\n\texports = {}\n"
 			for line in f:
-				# stop reading at pattern & skip blank lines
+				# stop reading at pattern & skip blank & comment lines
 				if line.startswith("#!eof"): break
 				elif line.strip()=="": continue
+				elif line.strip().startswith("#"): continue
 				# remember imported external modules
 				elif line.startswith("import "):
 					modules.extend( i.strip() for i in line[7:].split(",") )
