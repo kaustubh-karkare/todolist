@@ -8,7 +8,7 @@ for index,name in enumerate("monday tuesday wednesday thursday friday saturday s
 	periodic[name] = (lambda x: lambda date: date.weekday()==x)(index)
 
 essential = "essential"
-status = "done failed".split()
+status = "failed done".split()
 
 prefix = "#"
 prefixlen = len(prefix)
@@ -20,8 +20,9 @@ def istag(tag): return tag.startswith(prefix) and istagstr(tag[prefixlen:])
 
 class Task:
 
-	def __init__(self,raw):
+	def __init__(self,raw,group):
 		self.update(raw)
+		self.group = group
 
 	def update(self,raw):
 		self.__raw = raw
@@ -42,25 +43,25 @@ class Task:
 
 	def __eq__(self,other): return isinstance(other,self.__class__) and self.__raw==other.__raw
 	def __ne__(self,other): return not self.__eq__(other)
-	def __str__(self): return self.__raw
+	def __hash__(self): return self.__raw.__hash__()
 	def __contains__(self,word): return isinstance(word,str) and word.lower() in self.__raw.lower()
+	def __repr__(self): return self.__raw
 
-	def text(self):
-		"Returns the task-string with all tags removed."
-		return " ".join(word for word in self.__raw.split() if not istag(word))
+	def raw(self): return self.__raw
 
-	sg = ["Essential","Periodic"] # special group names
+	table_heading = "Date Task Tags Status".title().split()
 
-	def group(self,today):
-		"Returns the group this task should be a part of."
-		if essential in self.__tags: return sg[0]
-		elif any([i in self.__tags for i in periodic]): return sg[1]
-		else:
-			gen = (i[5:] for i in self.__tags if i.startswith("date="))
-			return next( gen, today )
+	def table_fields(self):
+		text = " ".join(word for word in self.__raw.split() if not istag(word))
+		tags = ", ".join(tag for tag in self.__tags if tag not in status)
+		stat = next((tag for tag in self.__tags if tag in status), "pending").title()
+		return [self.group.name, text, tags, stat]
 
-	def tag_list(self):
-		return self.__tags
+	sg = "essential periodic".split() # special group names
+
+	def groupname(self):
+		if essential in self.__tags: return "essential"
+		elif any([i in self.__tags for i in periodic]): return "periodic"
 
 	def tag_add(self,tag):
 		if istagstr(tag) and tag not in self.__tags:
@@ -68,7 +69,10 @@ class Task:
 			return True
 		return False
 
-	def tag_delete(self,tag):
+	def tag_check(self,tag):
+		return tag in self.__tags
+
+	def tag_remove(self,tag):
 		if istagstr(tag) and tag in self.__tags:
 			tag = prefix + tag # eliminates recomputation
 			temp = [i for i in self.__raw.split() if i!=tag]
@@ -76,29 +80,11 @@ class Task:
 			return True
 		return False
 
-	def iteration(self,date):
+	def iteration(self,date,group):
 		tags = filter(lambda tag: tag in periodic, self.__tags)
 		if not any(periodic[name](date) for name in tags): return
 		temp = [i for i in self.__raw.split() \
 			if not istag(i) or i[prefixlen:] not in tags]
-		return self.__class__( " ".join(temp) )
+		return self.__class__( " ".join(temp), group )
 
 exports["Task"] = Task
-
-#!eof
-
-def test():
-	from datetime import date
-	today = date.today()
-	t = Task("Eat Breakfast.\t#everyday")
-	if t.tags!=["everyday"]: return 1
-	if t.text()!="Eat Breakfast.": return 2
-	if t.group(today)!="Periodic": return 3
-	t2 = t.iteration(today)
-	if t2.text()!=t.text() or t2.tags==t.tags: return 4
-	t.tag_add("essential")
-	if "everyday" in t.tags: return 5
-	t.tag_delete("essential")
-	if t.group(today)!=today: return 6
-
-if __name__ == "__main__": print test()

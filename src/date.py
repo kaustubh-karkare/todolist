@@ -23,12 +23,15 @@ class Date:
 			self.date += self.relative[today]*self.oneday
 		elif self.regexp.match(today):
 			self.date = self.deconvert(today)
+		else: raise Exception("Invalid Date")
 
-		self.today = self.convert(self.date)
+		self.__str = self.convert(self.date)
 
 		for word in self.relative:
 			temp = self.date + self.relative[word] * self.oneday
 			self.__relative[word] = self.convert(temp)
+
+	def str(self): return self.__str
 
 	def translate(self,word):
 		# Convert from string to string.
