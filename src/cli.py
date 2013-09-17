@@ -14,12 +14,14 @@ def action(z):
 	if x in actions: return (x, y or "today")
 	else: raise Exception("Unknown Action")
 
+def date(x): return Date("today") # development only
+
 ap = argparse.ArgumentParser(description="A Command Line ToDoList Manager", add_help=False)
 ap.add_argument("action", nargs="?", type=action, default="list")
 ap.add_argument("data", nargs="*")
 ap.add_argument("-h","--help", action="store_true", default=False)
 ap.add_argument("-f","--file", default="./todolist.txt")
-ap.add_argument("--date", type=Date, default="today")
+ap.add_argument("--date", type=date, default="today")
 ap.add_argument("--nosave", action="store_true", default=False)
 
 # User Interaction Functions
@@ -59,7 +61,7 @@ def __select(taskfile,name,args):
 	if len(tasks)==1:
 		return tasks[0]
 	else:
-		print taskgroup.tabulate(date=args.date, heading=" ".join(data), index=True)
+		print taskgroup.tabulate(date=args.date, heading=" ".join(args.data), index=True)
 		while True:
 			index = prompt("Select Task by Index: ")
 			try: task = tasks[int(index)]
@@ -155,4 +157,4 @@ def main():
 	except Exception as e:
 		print "Error:", e.message, "\n"
 
-exports["main"] = main
+exports["main"] = __main

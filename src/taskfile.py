@@ -172,9 +172,15 @@ class TaskFile:
 		if name in daterange:
 			temp = [ self.group(current).select(words).task_list() \
 				for current in self.__position.keys() if current not in Task.sg \
-				and daterange[name]( self.__date.date, self.__date.deconvert(current) ) ]
+				and name in daterange and daterange[name]( self.__date.date, Date.deconvert(current) ) ]
 			return TaskGroup(task for sublist in temp for task in sublist)
-		
+
+		if name=="incomplete":
+			temp = [ self.group(current).select(words).task_list() \
+				for current in self.__position.keys() if current not in Task.sg ]
+			return TaskGroup(task for sublist in temp for task in sublist \
+				if task.status(self.__date)=="pending")
+
 		return self.group(name).select(words)
 
 exports["TaskFile"] = TaskFile

@@ -1,3 +1,4 @@
+#!/usr/bin/python2
 
 import argparse, copy, datetime, os, sys
 
@@ -27,7 +28,7 @@ def __toposort(graph,preserve=True):
 			raise Exception("Cyclic Dependency!")
 	return result
 
-__prefix = """#!/usr/bin/python
+__prefix = """#!/usr/bin/python2
 def define(scope):
 	def actual(exports):
 		scope.update(exports)

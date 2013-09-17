@@ -17,18 +17,19 @@ class TaskGroup:
 	def task_add(self,task):
 		if isinstance(task,Task) and not any(t==task for t in self.__tasks):
 			self.__tasks.append(task)
+			self.__tasks.sort(key=lambda x: x.raw())
+			self.__tasks.sort(key=lambda x: x.group and x.group.name, reverse=True)
 
 	def task_remove(self,task):
 		if isinstance(task,Task) and task in self.__tasks:
 			self.__tasks.remove(task)
 
 	def tabulate(self, date, heading=None, index=False):
-		data = [ Task.table_heading ]
-		data.extend( task.table_fields(date.date) for task in self.task_list() )
-		data = [data[0]]+sorted(data[1:], key=lambda x: x[0], reverse=True)
+		data = [Task.table_heading]
+		data.extend( task.table_fields(date) for task in self.task_list() )
 		if index:
 			for i,row in enumerate(data):
-				data[i] = ["Index" if i==0 else i-1]+data[i]
+				data[i] = ["Index" if i==0 else str(i-1)]+data[i]
 		result, prefix = prettytable(data), ""
 		if heading:
 			x = result.find("\n")-len(heading)

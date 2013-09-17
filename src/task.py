@@ -32,7 +32,7 @@ class Task:
 
 		temp = len(self.__tags)
 		if "essential" in self.__tags:
-			self.__tags = [i for i in self.__tags if i not in periodic and not i.startswith("deadline=")]
+			self.__tags = [i for i in self.__tags if not i.startswith("deadline=")]
 		if len(self.__tags)<temp:
 			temp = [i for i in self.__raw.split() \
 				if not istag(i) or i[prefixlen:] in self.__tags]
@@ -55,11 +55,8 @@ class Task:
 		freq = ", ".join([tag for tag in self.__tags if tag in periodic])
 		dead = next((tag[9:] for tag in self.__tags if tag.startswith("deadline=")), \
 			"No Limit" if "essential" in self.__tags else "")
-		stat = "failed" if Date.regexp.match(dead) and date>Date.deconvert(dead) or \
-			dead=="" and Date.regexp.match(self.group.name) and date>Date.deconvert(self.group.name) \
-			else "pending"
-		stat = next((tag for tag in self.__tags if tag in status), stat).title()
-		return [self.group.name, text, tags, freq, dead, stat]
+		stat = self.status(date).title()
+		return [self.group.name if self.group else "", text, tags, freq, dead, stat]
 
 	sg = "periodic".split() # special group names
 
@@ -80,6 +77,16 @@ class Task:
 			return True
 		return False
 
+	def status(self,date):
+		result = next((tag for tag in self.__tags if tag in status),None)
+		if result: return result
+		if "essential" in self.__tags: return "pending"
+		deadline = next((tag[9:] for tag in self.__tags if tag.startswith("deadline=")),None)
+		deadline = deadline and Date.deconvert(deadline) \
+			or self.group and Date.regexp.match(self.group.name) and Date.deconvert(self.group.name)
+		if not deadline or date.date<=deadline: return "pending"
+		return "failed"
+
 	def carryover(self,date):
 		if any(i in status for i in self.__tags): return
 		for tag in self.__tags:
@@ -95,6 +102,5 @@ class Task:
 		temp = [tag for tag in self.__raw.split() \
 			if not istag(tag) or tag[prefixlen:] not in status and not tag.startswith("deadline=")]
 		return self.__class__( " ".join(temp), group )
-		return self.__class__( self.__raw, None )
 
 exports["Task"] = Task

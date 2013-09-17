@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python2
 def define(scope):
 	def actual(exports):
 		scope.update(exports)
@@ -118,7 +118,7 @@ def exports():
 			self.__tags = [tag[prefixlen:] for tag in self.__tags]
 			temp = len(self.__tags)
 			if "essential" in self.__tags:
-				self.__tags = [i for i in self.__tags if i not in periodic and not i.startswith("deadline=")]
+				self.__tags = [i for i in self.__tags if not i.startswith("deadline=")]
 			if len(self.__tags)<temp:
 				temp = [i for i in self.__raw.split() \
 					if not istag(i) or i[prefixlen:] in self.__tags]
@@ -137,11 +137,8 @@ def exports():
 			freq = ", ".join([tag for tag in self.__tags if tag in periodic])
 			dead = next((tag[9:] for tag in self.__tags if tag.startswith("deadline=")), \
 				"No Limit" if "essential" in self.__tags else "")
-			stat = "failed" if Date.regexp.match(dead) and date>Date.deconvert(dead) or \
-				dead=="" and Date.regexp.match(self.group.name) and date>Date.deconvert(self.group.name) \
-				else "pending"
-			stat = next((tag for tag in self.__tags if tag in status), stat).title()
-			return [self.group.name, text, tags, freq, dead, stat]
+			stat = self.status(date).title()
+			return [self.group.name if self.group else "", text, tags, freq, dead, stat]
 		sg = "periodic".split() # special group names
 		def tag_add(self,tag):
 			if istagstr(tag) and tag not in self.__tags:
@@ -157,6 +154,15 @@ def exports():
 				self.update( " ".join(temp) )
 				return True
 			return False
+		def status(self,date):
+			result = next((tag for tag in self.__tags if tag in status),None)
+			if result: return result
+			if "essential" in self.__tags: return "pending"
+			deadline = next((tag[9:] for tag in self.__tags if tag.startswith("deadline=")),None)
+			deadline = deadline and Date.deconvert(deadline) \
+				or self.group and Date.regexp.match(self.group.name) and Date.deconvert(self.group.name)
+			if not deadline or date.date<=deadline: return "pending"
+			return "failed"
 		def carryover(self,date):
 			if any(i in status for i in self.__tags): return
 			for tag in self.__tags:
@@ -171,7 +177,6 @@ def exports():
 			temp = [tag for tag in self.__raw.split() \
 				if not istag(tag) or tag[prefixlen:] not in status and not tag.startswith("deadline=")]
 			return self.__class__( " ".join(temp), group )
-			return self.__class__( self.__raw, None )
 	exports["Task"] = Task
 	return exports
 define(exports())
@@ -190,16 +195,17 @@ def exports():
 		def task_add(self,task):
 			if isinstance(task,Task) and not any(t==task for t in self.__tasks):
 				self.__tasks.append(task)
+				self.__tasks.sort(key=lambda x: x.raw())
+				self.__tasks.sort(key=lambda x: x.group and x.group.name, reverse=True)
 		def task_remove(self,task):
 			if isinstance(task,Task) and task in self.__tasks:
 				self.__tasks.remove(task)
 		def tabulate(self, date, heading=None, index=False):
-			data = [ Task.table_heading ]
-			data.extend( task.table_fields(date.date) for task in self.task_list() )
-			data = [data[0]]+sorted(data[1:], key=lambda x: x[0], reverse=True)
+			data = [Task.table_heading]
+			data.extend( task.table_fields(date) for task in self.task_list() )
 			if index:
 				for i,row in enumerate(data):
-					data[i] = ["Index" if i==0 else i-1]+data[i]
+					data[i] = ["Index" if i==0 else str(i-1)]+data[i]
 			result, prefix = prettytable(data), ""
 			if heading:
 				x = result.find("\n")-len(heading)
@@ -342,8 +348,13 @@ def exports():
 			if name in daterange:
 				temp = [ self.group(current).select(words).task_list() \
 					for current in self.__position.keys() if current not in Task.sg \
-					and daterange[name]( self.__date.date, self.__date.deconvert(current) ) ]
+					and name in daterange and daterange[name]( self.__date.date, Date.deconvert(current) ) ]
 				return TaskGroup(task for sublist in temp for task in sublist)
+			if name=="incomplete":
+				temp = [ self.group(current).select(words).task_list() \
+					for current in self.__position.keys() if current not in Task.sg ]
+				return TaskGroup(task for sublist in temp for task in sublist \
+					if task.status(self.__date)=="pending")
 			return self.group(name).select(words)
 	exports["TaskFile"] = TaskFile
 	return exports
@@ -358,12 +369,13 @@ def exports():
 		(x, y) = z.split(":",1) if ":" in z else (z, None)
 		if x in actions: return (x, y or "today")
 		else: raise Exception("Unknown Action")
+	def date(x): return Date("today") # development only
 	ap = argparse.ArgumentParser(description="A Command Line ToDoList Manager", add_help=False)
 	ap.add_argument("action", nargs="?", type=action, default="list")
 	ap.add_argument("data", nargs="*")
 	ap.add_argument("-h","--help", action="store_true", default=False)
 	ap.add_argument("-f","--file", default="./todolist.txt")
-	ap.add_argument("--date", type=Date, default="today")
+	ap.add_argument("--date", type=date, default="today")
 	ap.add_argument("--nosave", action="store_true", default=False)
 	def confirm(msg="Are you sure?"):
 		while True:
@@ -396,7 +408,7 @@ def exports():
 		if len(tasks)==1:
 			return tasks[0]
 		else:
-			print taskgroup.tabulate(date=args.date, heading=" ".join(data), index=True)
+			print taskgroup.tabulate(date=args.date, heading=" ".join(args.data), index=True)
 			while True:
 				index = prompt("Select Task by Index: ")
 				try: task = tasks[int(index)]
@@ -472,7 +484,7 @@ def exports():
 			sys.exit(1)
 		except Exception as e:
 			print "Error:", e.message, "\n"
-	exports["main"] = main
+	exports["main"] = __main
 	return exports
 define(exports())
 
