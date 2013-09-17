@@ -1,4 +1,6 @@
 
+require date
+
 periodic = { # function arguments: datetime.date instance
 	"everyday": lambda date: True,
 	"weekdays": lambda date: date.weekday()<5,
@@ -46,14 +48,17 @@ class Task:
 
 	table_heading = "Date Task Tags Periodicity Deadline Status".title().split()
 
-	def table_fields(self):
+	def table_fields(self,date):
 		text = " ".join(word for word in self.__raw.split() if not istag(word))
 		tags = ", ".join(tag for tag in self.__tags if tag not in status and \
 			tag not in periodic and not tag.startswith("deadline=") and tag!="essential")
 		freq = ", ".join([tag for tag in self.__tags if tag in periodic])
 		dead = next((tag[9:] for tag in self.__tags if tag.startswith("deadline=")), \
 			"No Limit" if "essential" in self.__tags else "")
-		stat = next((tag for tag in self.__tags if tag in status), "pending").title()
+		stat = "failed" if Date.regexp.match(dead) and date>Date.deconvert(dead) or \
+			dead=="" and Date.regexp.match(self.group.name) and date>Date.deconvert(self.group.name) \
+			else "pending"
+		stat = next((tag for tag in self.__tags if tag in status), stat).title()
 		return [self.group.name, text, tags, freq, dead, stat]
 
 	sg = "periodic".split() # special group names

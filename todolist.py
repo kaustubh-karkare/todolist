@@ -7,89 +7,7 @@ define = define(vars())
 import argparse, datetime, sys, re, readline, os
 def exports():
 	exports = {}
-	periodic = { # function arguments: datetime.date instance
-		"everyday": lambda date: True,
-		"weekdays": lambda date: date.weekday()<5,
-		"weekends": lambda date: date.weekday()>4,
-	}
-	for index,name in enumerate("monday tuesday wednesday thursday friday saturday sunday".split()):
-		periodic[name] = (lambda x: lambda date: date.weekday()==x)(index)
-	status = "failed done".split()
-	prefix = "#"
-	prefixlen = len(prefix)
-	def istagstr(str): return len(str)>0 and len(str.split())==1
-	def istag(tag): return tag.startswith(prefix) and istagstr(tag[prefixlen:])
-	class Task:
-		def __init__(self,raw,group):
-			self.update(raw)
-			self.group = group
-		def update(self,raw):
-			self.__raw = raw
-			self.__tags = [tag.lower() for tag in self.__raw.split() if istag(tag)]
-			self.__tags = [tag[prefixlen:] for tag in self.__tags]
-			temp = len(self.__tags)
-			if "essential" in self.__tags:
-				self.__tags = [i for i in self.__tags if i not in periodic and not i.startswith("deadline=")]
-			if len(self.__tags)<temp:
-				temp = [i for i in self.__raw.split() \
-					if not istag(i) or i[prefixlen:] in self.__tags]
-				self.__raw = " ".join(temp)
-		def __eq__(self,other): return isinstance(other,self.__class__) and self.__raw==other.__raw
-		def __ne__(self,other): return not self.__eq__(other)
-		def __hash__(self): return self.__raw.__hash__()
-		def __contains__(self,word): return isinstance(word,str) and word.lower() in self.__raw.lower()
-		def __repr__(self): return self.__raw
-		def raw(self): return self.__raw
-		table_heading = "Date Task Tags Periodicity Deadline Status".title().split()
-		def table_fields(self):
-			text = " ".join(word for word in self.__raw.split() if not istag(word))
-			tags = ", ".join(tag for tag in self.__tags if tag not in status and \
-				tag not in periodic and not tag.startswith("deadline=") and tag!="essential")
-			freq = ", ".join([tag for tag in self.__tags if tag in periodic])
-			dead = next((tag[9:] for tag in self.__tags if tag.startswith("deadline=")), \
-				"No Limit" if "essential" in self.__tags else "")
-			stat = next((tag for tag in self.__tags if tag in status), "pending").title()
-			return [self.group.name, text, tags, freq, dead, stat]
-		sg = "periodic".split() # special group names
-		def tag_add(self,tag):
-			if istagstr(tag) and tag not in self.__tags:
-				self.update( " ".join(self.__raw.split()+[prefix+tag]) )
-				return True
-			return False
-		def tag_check(self,tag):
-			return tag in self.__tags
-		def tag_remove(self,tag):
-			if istagstr(tag) and tag in self.__tags:
-				tag = prefix + tag # eliminates recomputation
-				temp = [i for i in self.__raw.split() if i!=tag]
-				self.update( " ".join(temp) )
-				return True
-			return False
-		def carryover(self,date):
-			if any(i in status for i in self.__tags): return
-			for tag in self.__tags:
-				if tag=="essential" \
-					or tag.startswith("deadline=") \
-					and Date.regexp.match(tag[9:]) \
-					and date<Date.deconvert(tag[9:]):
-					return True
-		def periodic(self,date,group):
-			tags = filter(lambda tag: tag in periodic, self.__tags)
-			if not any(periodic[name](date) for name in tags): return
-			temp = [tag for tag in self.__raw.split() \
-				if not istag(tag) or tag[prefixlen:] not in status and not tag.startswith("deadline=")]
-			return self.__class__( " ".join(temp), group )
-			return self.__class__( self.__raw, None )
-	exports["Task"] = Task
-	return exports
-define(exports())
-def exports():
-	exports = {}
-	vc = "|"
-	hc = "-"
-	jc = "+"
-	pd = " "
-	nl = "\n"
+	vc, hc, jc, pd, nl = "|-+ \n"
 	def prettytable(rows):
 		if len(rows)==0: return
 		width = [-1]*min(len(row) for row in rows)
@@ -106,39 +24,6 @@ def exports():
 		result+=line[:-1]
 		return result
 	exports["prettytable"] = prettytable
-	return exports
-define(exports())
-def exports():
-	exports = {}
-	class TaskGroup:
-		def __init__(self,tasks=[],name=""):
-			self.name = name
-			self.__tasks = []
-			for task in tasks:
-				self.task_add(task)
-		def __repr__(self):
-			return self.__tasks.__repr__()
-		def task_list(self,unhide=False):
-			return [task for task in self.__tasks if unhide or not task.tag_check("hidden")]
-		def task_add(self,task):
-			if isinstance(task,Task) and not any(t==task for t in self.__tasks):
-				self.__tasks.append(task)
-		def task_remove(self,task):
-			if isinstance(task,Task) and task in self.__tasks:
-				self.__tasks.remove(task)
-		def tabulate(self,heading=None,index=False):
-			data = [ (["Index"] if index else [])+Task.table_heading ]
-			for i, task in enumerate(self.task_list()):
-				data.append( ([i] if index else [])+task.table_fields() )
-			result, prefix = prettytable(data), ""
-			if heading:
-				x = result.find("\n")-len(heading)
-				prefix = "="*(x/2-1)+" "+heading+" "+"="*(x-x/2-1)+"\n"
-			return prefix+result+"\n"
-		def select(self,words):
-			return self.__class__( self.__tasks if len(words)==0 else \
-				[task for task in self.__tasks if all(word in task for word in words)] )
-	exports["TaskGroup"] = TaskGroup
 	return exports
 define(exports())
 def exports():
@@ -207,6 +92,123 @@ def exports():
 		def monthdiff(d1,d2):
 			return (d2.year*12+d2.month)-(d1.year*12+d1.month)
 	exports["Date"] = Date
+	return exports
+define(exports())
+def exports():
+	exports = {}
+	periodic = { # function arguments: datetime.date instance
+		"everyday": lambda date: True,
+		"weekdays": lambda date: date.weekday()<5,
+		"weekends": lambda date: date.weekday()>4,
+	}
+	for index,name in enumerate("monday tuesday wednesday thursday friday saturday sunday".split()):
+		periodic[name] = (lambda x: lambda date: date.weekday()==x)(index)
+	status = "failed done".split()
+	prefix = "#"
+	prefixlen = len(prefix)
+	def istagstr(str): return len(str)>0 and len(str.split())==1
+	def istag(tag): return tag.startswith(prefix) and istagstr(tag[prefixlen:])
+	class Task:
+		def __init__(self,raw,group):
+			self.update(raw)
+			self.group = group
+		def update(self,raw):
+			self.__raw = raw
+			self.__tags = [tag.lower() for tag in self.__raw.split() if istag(tag)]
+			self.__tags = [tag[prefixlen:] for tag in self.__tags]
+			temp = len(self.__tags)
+			if "essential" in self.__tags:
+				self.__tags = [i for i in self.__tags if i not in periodic and not i.startswith("deadline=")]
+			if len(self.__tags)<temp:
+				temp = [i for i in self.__raw.split() \
+					if not istag(i) or i[prefixlen:] in self.__tags]
+				self.__raw = " ".join(temp)
+		def __eq__(self,other): return isinstance(other,self.__class__) and self.__raw==other.__raw
+		def __ne__(self,other): return not self.__eq__(other)
+		def __hash__(self): return self.__raw.__hash__()
+		def __contains__(self,word): return isinstance(word,str) and word.lower() in self.__raw.lower()
+		def __repr__(self): return self.__raw
+		def raw(self): return self.__raw
+		table_heading = "Date Task Tags Periodicity Deadline Status".title().split()
+		def table_fields(self,date):
+			text = " ".join(word for word in self.__raw.split() if not istag(word))
+			tags = ", ".join(tag for tag in self.__tags if tag not in status and \
+				tag not in periodic and not tag.startswith("deadline=") and tag!="essential")
+			freq = ", ".join([tag for tag in self.__tags if tag in periodic])
+			dead = next((tag[9:] for tag in self.__tags if tag.startswith("deadline=")), \
+				"No Limit" if "essential" in self.__tags else "")
+			stat = "failed" if Date.regexp.match(dead) and date>Date.deconvert(dead) or \
+				dead=="" and Date.regexp.match(self.group.name) and date>Date.deconvert(self.group.name) \
+				else "pending"
+			stat = next((tag for tag in self.__tags if tag in status), stat).title()
+			return [self.group.name, text, tags, freq, dead, stat]
+		sg = "periodic".split() # special group names
+		def tag_add(self,tag):
+			if istagstr(tag) and tag not in self.__tags:
+				self.update( " ".join(self.__raw.split()+[prefix+tag]) )
+				return True
+			return False
+		def tag_check(self,tag):
+			return tag in self.__tags
+		def tag_remove(self,tag):
+			if istagstr(tag) and tag in self.__tags:
+				tag = prefix + tag # eliminates recomputation
+				temp = [i for i in self.__raw.split() if i!=tag]
+				self.update( " ".join(temp) )
+				return True
+			return False
+		def carryover(self,date):
+			if any(i in status for i in self.__tags): return
+			for tag in self.__tags:
+				if tag=="essential" \
+					or tag.startswith("deadline=") \
+					and Date.regexp.match(tag[9:]) \
+					and date<Date.deconvert(tag[9:]):
+					return True
+		def periodic(self,date,group):
+			tags = filter(lambda tag: tag in periodic, self.__tags)
+			if not any(periodic[name](date) for name in tags): return
+			temp = [tag for tag in self.__raw.split() \
+				if not istag(tag) or tag[prefixlen:] not in status and not tag.startswith("deadline=")]
+			return self.__class__( " ".join(temp), group )
+			return self.__class__( self.__raw, None )
+	exports["Task"] = Task
+	return exports
+define(exports())
+def exports():
+	exports = {}
+	class TaskGroup:
+		def __init__(self,tasks=[],name=""):
+			self.name = name
+			self.__tasks = []
+			for task in tasks:
+				self.task_add(task)
+		def __repr__(self):
+			return self.__tasks.__repr__()
+		def task_list(self,unhide=False):
+			return [task for task in self.__tasks if unhide or not task.tag_check("hidden")]
+		def task_add(self,task):
+			if isinstance(task,Task) and not any(t==task for t in self.__tasks):
+				self.__tasks.append(task)
+		def task_remove(self,task):
+			if isinstance(task,Task) and task in self.__tasks:
+				self.__tasks.remove(task)
+		def tabulate(self, date, heading=None, index=False):
+			data = [ Task.table_heading ]
+			data.extend( task.table_fields(date.date) for task in self.task_list() )
+			data = [data[0]]+sorted(data[1:], key=lambda x: x[0], reverse=True)
+			if index:
+				for i,row in enumerate(data):
+					data[i] = ["Index" if i==0 else i-1]+data[i]
+			result, prefix = prettytable(data), ""
+			if heading:
+				x = result.find("\n")-len(heading)
+				prefix = "="*(x/2-1)+" "+heading+" "+"="*(x-x/2-1)+"\n"
+			return prefix+result+"\n"
+		def select(self,words):
+			return self.__class__( self.__tasks if len(words)==0 else \
+				[task for task in self.__tasks if all(word in task for word in words)] )
+	exports["TaskGroup"] = TaskGroup
 	return exports
 define(exports())
 def exports():
@@ -386,15 +388,15 @@ def exports():
 		task.group = taskgroup
 		taskfile.update(taskgroup)
 		return True
-	def __select(taskfile,name,data):
-		taskgroup = taskfile.select(name,data)
+	def __select(taskfile,name,args):
+		taskgroup = taskfile.select(name,args.data)
 		tasks = taskgroup.task_list()
 		if len(tasks)==0:
 			raise Exception("No Matching Task")
 		if len(tasks)==1:
 			return tasks[0]
 		else:
-			print taskgroup.tabulate(" ".join(data),True)
+			print taskgroup.tabulate(date=args.date, heading=" ".join(data), index=True)
 			while True:
 				index = prompt("Select Task by Index: ")
 				try: task = tasks[int(index)]
@@ -411,18 +413,18 @@ def exports():
 		line = " ".join(args.data)
 		if action=="list":
 			taskgroup = taskfile.select(name, args.data)
-			print taskgroup.tabulate(line)
+			print taskgroup.tabulate(date=args.date, heading=line)
 		elif action=="add":
 			if line=="": raise Exception("Empty Task")
 			task = Task(line,None)
 			name = args.date.translate(name) or name
 			if not __relocate(taskfile,task,name):
 				raise Exception("Invalid Date")
-			print task.group.tabulate(name)			
+			print task.group.tabulate(date=args.date, heading=name)			
 		else:
-			task = __select(taskfile, name, args.data)
+			task = __select(taskfile, name, args)
 			if action in ("edit","delete","move"):
-				print TaskGroup([task]).tabulate()
+				print TaskGroup([task]).tabulate(date=args.date)
 			if action=="edit":
 				while True:
 					line = prompt("Edit Task: ",str(task))
@@ -453,7 +455,7 @@ def exports():
 				task.tag_remove("failed")
 			else: raise Exception("Unknown Action")
 			if action!="delete":
-				print TaskGroup([task]).tabulate()
+				print TaskGroup([task]).tabulate(date=args.date)
 		if args.nosave:
 			pass
 		elif action=="list":
@@ -470,7 +472,7 @@ def exports():
 			sys.exit(1)
 		except Exception as e:
 			print "Error:", e.message, "\n"
-	exports["main"] = __main
+	exports["main"] = main
 	return exports
 define(exports())
 

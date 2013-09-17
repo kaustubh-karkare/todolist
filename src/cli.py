@@ -51,15 +51,15 @@ def __relocate(taskfile,task,name):
 	taskfile.update(taskgroup)
 	return True
 
-def __select(taskfile,name,data):
-	taskgroup = taskfile.select(name,data)
+def __select(taskfile,name,args):
+	taskgroup = taskfile.select(name,args.data)
 	tasks = taskgroup.task_list()
 	if len(tasks)==0:
 		raise Exception("No Matching Task")
 	if len(tasks)==1:
 		return tasks[0]
 	else:
-		print taskgroup.tabulate(" ".join(data),True)
+		print taskgroup.tabulate(date=args.date, heading=" ".join(data), index=True)
 		while True:
 			index = prompt("Select Task by Index: ")
 			try: task = tasks[int(index)]
@@ -81,7 +81,7 @@ def __main():
 	
 	if action=="list":
 		taskgroup = taskfile.select(name, args.data)
-		print taskgroup.tabulate(line)
+		print taskgroup.tabulate(date=args.date, heading=line)
 
 	elif action=="add":
 		if line=="": raise Exception("Empty Task")
@@ -90,13 +90,13 @@ def __main():
 		name = args.date.translate(name) or name
 		if not __relocate(taskfile,task,name):
 			raise Exception("Invalid Date")
-		print task.group.tabulate(name)			
+		print task.group.tabulate(date=args.date, heading=name)			
 
 	else:
 
-		task = __select(taskfile, name, args.data)
+		task = __select(taskfile, name, args)
 		if action in ("edit","delete","move"):
-			print TaskGroup([task]).tabulate()
+			print TaskGroup([task]).tabulate(date=args.date)
 
 		if action=="edit":
 			while True:
@@ -135,7 +135,7 @@ def __main():
 		else: raise Exception("Unknown Action")
 
 		if action!="delete":
-			print TaskGroup([task]).tabulate()
+			print TaskGroup([task]).tabulate(date=args.date)
 	
 	if args.nosave:
 		pass
@@ -155,4 +155,4 @@ def main():
 	except Exception as e:
 		print "Error:", e.message, "\n"
 
-exports["main"] = __main
+exports["main"] = main

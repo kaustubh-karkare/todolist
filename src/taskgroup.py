@@ -22,10 +22,13 @@ class TaskGroup:
 		if isinstance(task,Task) and task in self.__tasks:
 			self.__tasks.remove(task)
 
-	def tabulate(self,heading=None,index=False):
-		data = [ (["Index"] if index else [])+Task.table_heading ]
-		for i, task in enumerate(self.task_list()):
-			data.append( ([i] if index else [])+task.table_fields() )
+	def tabulate(self, date, heading=None, index=False):
+		data = [ Task.table_heading ]
+		data.extend( task.table_fields(date.date) for task in self.task_list() )
+		data = [data[0]]+sorted(data[1:], key=lambda x: x[0], reverse=True)
+		if index:
+			for i,row in enumerate(data):
+				data[i] = ["Index" if i==0 else i-1]+data[i]
 		result, prefix = prettytable(data), ""
 		if heading:
 			x = result.find("\n")-len(heading)

@@ -1,9 +1,5 @@
 
-vc = "|"
-hc = "-"
-jc = "+"
-pd = " "
-nl = "\n"
+vc, hc, jc, pd, nl = "|-+ \n"
 
 def prettytable(rows):
 	if len(rows)==0: return
