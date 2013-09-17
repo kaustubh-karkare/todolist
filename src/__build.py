@@ -87,7 +87,6 @@ if __name__=="__main__":
 
 	ap = argparse.ArgumentParser()
 	ap.add_argument("target", help="The target file to which all code will be written.")
-	ap.add_argument("--loop", action="store_true", help="Starts an infinite loop to continuously watch the source directory and rebuild when changes are detected.")
 	args = ap.parse_args(sys.argv[1:])
 
 	build(__dir__, args.target)

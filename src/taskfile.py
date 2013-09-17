@@ -24,6 +24,11 @@ class TaskFile:
 
 	def load(self):
 
+		if not os.path.isfile(self.__name):
+			tempfile = open(self.__name,"w")
+			tempfile.write("# "+self.__date.str())
+			tempfile.close()
+
 		self.__file = open(self.__name,"r")
 		self.__position = {}
 		self.__updated = {}

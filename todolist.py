@@ -176,6 +176,10 @@ def exports():
 			self.__date = date
 			self.load()
 		def load(self):
+			if not os.path.isfile(self.__name):
+				tempfile = open(self.__name,"w")
+				tempfile.write("# "+self.__date.str())
+				tempfile.close()
 			self.__file = open(self.__name,"r")
 			self.__position = {}
 			self.__updated = {}
@@ -282,11 +286,30 @@ def exports():
 		(x, y) = z.split(":",1) if ":" in z else (z, None)
 		if x in actions: return (x, y or "today")
 		else: raise Exception("Unknown Action")
-	ap = argparse.ArgumentParser()
+	ap = argparse.ArgumentParser(description="A Command Line ToDoList Manager", add_help=False)
 	ap.add_argument("action", nargs="?", type=action, default="list")
 	ap.add_argument("data", nargs="*")
 	ap.add_argument("-f","--file", default="./todolist.txt")
 	ap.add_argument("-d","--date", type=Date, default="today")
+	ap.add_argument("-h","--help", action="store_true", default=False)
+	helptext = [
+		"A Command Line ToDoList Manager",
+		"\nUsage: todolist.py [-h] [-f <filepath>] [action] [data]",
+		"\nPositional Arguments:",
+		"	action (default=\"list:today\") = [(<operation>)[:<taskgroup>]]",
+		"		<operation> = list | add | done | failed | pending | edit | move | delete",
+		"		<taskgroup> = This can be either a date, a range or a special category.",
+		"	data = [<word>*]",
+		"		In case of the add-operation, this is the task string itself (including tags).",
+		"		In all other cases, the words are used as task filters for the selected group.",
+		"\nOptional Arguments:",
+		"	-h, --help",
+		"		Show this help message and exit.",
+		"	-f <filepath>, --file <filepath> (default=\"./todolist.txt\")",
+		"		The properly formatted text-file to be used as the data-source.",
+		"\nCreated by: Kaustubh Karkare\n"
+	]
+	helptext = "\n".join(helptext).replace("\t"," "*4)
 	def confirm(msg="Are you sure?"):
 		while True:
 			x = raw_input(msg+" (yes/no) ")
@@ -324,6 +347,9 @@ def exports():
 	def __main():
 		print
 		args = ap.parse_args(sys.argv[1:])
+		if args.help:
+			print helptext
+			sys.exit(0)
 		taskfile = TaskFile(args.file,args.date)
 		action, name = args.action
 		line = " ".join(args.data)
