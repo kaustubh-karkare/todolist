@@ -29,9 +29,13 @@ def confirm(msg="Are you sure?"):
 		x = raw_input(msg+" (yes/no) ")
 		if x=="yes": return True
 		elif x=="no": return False
+	print
 def prompt(prompt, prefill=""):
 	readline.set_startup_hook(lambda: readline.insert_text(prefill))
-	try: return raw_input(prompt)
+	try:
+		data = raw_input(prompt)
+		print
+		return data
 	finally: readline.set_startup_hook()
 
 # Convenience Functions
@@ -40,7 +44,6 @@ def __relocate(taskfile,task,name):
 	if task.group:
 		task.group.task_remove(task)
 		taskfile.update(task.group)
-	name = task.groupname() or name
 	taskgroup = taskfile.group(name)
 	if not taskgroup: return False
 	taskgroup.task_add(task)
@@ -92,7 +95,8 @@ def __main():
 	else:
 
 		task = __select(taskfile, name, args.data)
-		print TaskGroup([task]).tabulate()
+		if action in ("edit","delete","move"):
+			print TaskGroup([task]).tabulate()
 
 		if action=="edit":
 			while True:
@@ -109,10 +113,10 @@ def __main():
 		elif action=="move":
 			while True:
 				name = prompt("Enter Destination Date: ")
-				try: name = Date(name).str()
+				try: group = taskfile.group(name)
 				except: continue
 				break
-			__relocate(taskfile,task,name)
+			__relocate(taskfile,task,group.name)
 
 		elif action=="done":
 			task.tag_remove("failed")

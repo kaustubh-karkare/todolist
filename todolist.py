@@ -28,8 +28,8 @@ def exports():
 			self.__tags = [tag.lower() for tag in self.__raw.split() if istag(tag)]
 			self.__tags = [tag[prefixlen:] for tag in self.__tags]
 			temp = len(self.__tags)
-			if any(i in periodic for i in self.__tags):
-				self.__tags = [i for i in self.__tags if i not in status]
+			if "essential" in self.__tags:
+				self.__tags = [i for i in self.__tags if i not in periodic and not i.startswith("deadline=")]
 			if len(self.__tags)<temp:
 				temp = [i for i in self.__raw.split() \
 					if not istag(i) or i[prefixlen:] in self.__tags]
@@ -40,15 +40,17 @@ def exports():
 		def __contains__(self,word): return isinstance(word,str) and word.lower() in self.__raw.lower()
 		def __repr__(self): return self.__raw
 		def raw(self): return self.__raw
-		table_heading = "Date Task Tags Status".title().split()
+		table_heading = "Date Task Tags Periodicity Deadline Status".title().split()
 		def table_fields(self):
 			text = " ".join(word for word in self.__raw.split() if not istag(word))
-			tags = ", ".join(tag for tag in self.__tags if tag not in status)
+			tags = ", ".join(tag for tag in self.__tags if tag not in status and \
+				tag not in periodic and not tag.startswith("deadline=") and tag!="essential")
+			freq = ", ".join([tag for tag in self.__tags if tag in periodic])
+			dead = next((tag[9:] for tag in self.__tags if tag.startswith("deadline=")), \
+				"No Limit" if "essential" in self.__tags else "")
 			stat = next((tag for tag in self.__tags if tag in status), "pending").title()
-			return [self.group.name, text, tags, stat]
+			return [self.group.name, text, tags, freq, dead, stat]
 		sg = "periodic".split() # special group names
-		def groupname(self):
-			if any([i in self.__tags for i in periodic]): return "periodic"
 		def tag_add(self,tag):
 			if istagstr(tag) and tag not in self.__tags:
 				self.update( " ".join(self.__raw.split()+[prefix+tag]) )
@@ -74,9 +76,10 @@ def exports():
 		def periodic(self,date,group):
 			tags = filter(lambda tag: tag in periodic, self.__tags)
 			if not any(periodic[name](date) for name in tags): return
-			temp = [i for i in self.__raw.split() \
-				if not istag(i) or i[prefixlen:] not in tags]
+			temp = [tag for tag in self.__raw.split() \
+				if not istag(tag) or tag[prefixlen:] not in status and not tag.startswith("deadline=")]
 			return self.__class__( " ".join(temp), group )
+			return self.__class__( self.__raw, None )
 	exports["Task"] = Task
 	return exports
 define(exports())
@@ -342,15 +345,18 @@ def exports():
 			x = raw_input(msg+" (yes/no) ")
 			if x=="yes": return True
 			elif x=="no": return False
+		print
 	def prompt(prompt, prefill=""):
 		readline.set_startup_hook(lambda: readline.insert_text(prefill))
-		try: return raw_input(prompt)
+		try:
+			data = raw_input(prompt)
+			print
+			return data
 		finally: readline.set_startup_hook()
 	def __relocate(taskfile,task,name):
 		if task.group:
 			task.group.task_remove(task)
 			taskfile.update(task.group)
-		name = task.groupname() or name
 		taskgroup = taskfile.group(name)
 		if not taskgroup: return False
 		taskgroup.task_add(task)
@@ -392,7 +398,8 @@ def exports():
 			print task.group.tabulate(name)			
 		else:
 			task = __select(taskfile, name, args.data)
-			print TaskGroup([task]).tabulate()
+			if action in ("edit","delete","move"):
+				print TaskGroup([task]).tabulate()
 			if action=="edit":
 				while True:
 					line = prompt("Edit Task: ",str(task))
@@ -406,10 +413,10 @@ def exports():
 			elif action=="move":
 				while True:
 					name = prompt("Enter Destination Date: ")
-					try: name = Date(name).str()
+					try: group = taskfile.group(name)
 					except: continue
 					break
-				__relocate(taskfile,task,name)
+				__relocate(taskfile,task,group.name)
 			elif action=="done":
 				task.tag_remove("failed")
 				task.tag_add("done")
