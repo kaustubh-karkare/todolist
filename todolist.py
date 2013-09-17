@@ -4,7 +4,7 @@ def define(scope):
 		scope.update(exports)
 	return actual
 define = define(vars())
-import argparse, prettytable, datetime, sys, re, readline, os
+import argparse, datetime, sys, re, readline, os
 def exports():
 	exports = {}
 	periodic = { # function arguments: datetime.date instance
@@ -85,6 +85,31 @@ def exports():
 define(exports())
 def exports():
 	exports = {}
+	vc = "|"
+	hc = "-"
+	jc = "+"
+	pd = " "
+	nl = "\n"
+	def prettytable(rows):
+		if len(rows)==0: return
+		width = [-1]*min(len(row) for row in rows)
+		for row in rows:
+			for j, col in enumerate(row):
+				width[j] = max(width[j],len(col))
+		result = ""
+		line = (jc)+(jc).join(hc*(i+2) for i in width)+(jc)+nl
+		for i, row in enumerate(rows):
+			if i<2: result+=line
+			for j, col in enumerate(row):
+				result+=vc+pd+"{0:<{1}}".format(col,width[j])+pd
+			result+=vc+nl
+		result+=line[:-1]
+		return result
+	exports["prettytable"] = prettytable
+	return exports
+define(exports())
+def exports():
+	exports = {}
 	class TaskGroup:
 		def __init__(self,tasks=[],name=""):
 			self.name = name
@@ -102,16 +127,14 @@ def exports():
 			if isinstance(task,Task) and task in self.__tasks:
 				self.__tasks.remove(task)
 		def tabulate(self,heading=None,index=False):
-			fields = (["Index"] if index else [])+Task.table_heading
-			table = prettytable.PrettyTable(fields, padding_width=1)
-			for i in fields: table.align[i] = "l"
+			data = [ (["Index"] if index else [])+Task.table_heading ]
 			for i, task in enumerate(self.task_list()):
-				table.add_row( ([i] if index else [])+task.table_fields() )
-			table, prefix = table.get_string(), ""
+				data.append( ([i] if index else [])+task.table_fields() )
+			result, prefix = prettytable(data), ""
 			if heading:
-				x = table.find("\n")-len(heading)
+				x = result.find("\n")-len(heading)
 				prefix = "="*(x/2-1)+" "+heading+" "+"="*(x-x/2-1)+"\n"
-			return prefix+table+"\n"
+			return prefix+result+"\n"
 		def select(self,words):
 			return self.__class__( self.__tasks if len(words)==0 else \
 				[task for task in self.__tasks if all(word in task for word in words)] )
@@ -431,7 +454,11 @@ def exports():
 			else: raise Exception("Unknown Action")
 			if action!="delete":
 				print TaskGroup([task]).tabulate()
-		if not args.nosave and (action=="list" or confirm()):
+		if args.nosave:
+			pass
+		elif action=="list":
+			taskfile.save()
+		elif confirm():
 			taskfile.save()
 			print "Saved updates to file."
 			print

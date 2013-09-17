@@ -1,6 +1,5 @@
 
-import prettytable
-require task
+require task, prettytable
 
 class TaskGroup:
 	def __init__(self,tasks=[],name=""):
@@ -24,16 +23,14 @@ class TaskGroup:
 			self.__tasks.remove(task)
 
 	def tabulate(self,heading=None,index=False):
-		fields = (["Index"] if index else [])+Task.table_heading
-		table = prettytable.PrettyTable(fields, padding_width=1)
-		for i in fields: table.align[i] = "l"
+		data = [ (["Index"] if index else [])+Task.table_heading ]
 		for i, task in enumerate(self.task_list()):
-			table.add_row( ([i] if index else [])+task.table_fields() )
-		table, prefix = table.get_string(), ""
+			data.append( ([i] if index else [])+task.table_fields() )
+		result, prefix = prettytable(data), ""
 		if heading:
-			x = table.find("\n")-len(heading)
+			x = result.find("\n")-len(heading)
 			prefix = "="*(x/2-1)+" "+heading+" "+"="*(x-x/2-1)+"\n"
-		return prefix+table+"\n"
+		return prefix+result+"\n"
 
 	def select(self,words):
 		return self.__class__( self.__tasks if len(words)==0 else \

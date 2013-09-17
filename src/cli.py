@@ -137,7 +137,11 @@ def __main():
 		if action!="delete":
 			print TaskGroup([task]).tabulate()
 	
-	if not args.nosave and (action=="list" or confirm()):
+	if args.nosave:
+		pass
+	elif action=="list":
+		taskfile.save()
+	elif confirm():
 		taskfile.save()
 		print "Saved updates to file."
 		print
