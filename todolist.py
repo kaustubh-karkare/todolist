@@ -64,6 +64,8 @@ def exports():
 			self.__relative = {}
 			if today is None:
 				pass
+			elif isinstance(today,datetime.date):
+				self.date = today
 			elif today in self.relative:
 				self.date += self.relative[today]*self.oneday
 			elif self.regexp.match(today):
@@ -109,15 +111,15 @@ def exports():
 	def istagstr(str): return len(str)>0 and len(str.split())==1
 	def istag(tag): return tag.startswith(prefix) and istagstr(tag[prefixlen:])
 	class Task:
-		def __init__(self,raw,group):
-			self.update(raw)
+		def __init__(self,raw,group,date):
+			self.update(raw,date)
 			self.group = group
-		def update(self,raw):
+		def update(self,raw,date):
 			self.__raw = raw
 			self.__tags = [tag.lower() for tag in self.__raw.split() if istag(tag)]
 			self.__tags = [tag[prefixlen:] for tag in self.__tags]
 			temp = len(self.__tags)
-			if "essential" in self.__tags:
+			if "essential" in self.__tags or any(tag in periodic for tag in self.__tags):
 				self.__tags = [i for i in self.__tags if not i.startswith("deadline=")]
 			if len(self.__tags)<temp:
 				temp = [i for i in self.__raw.split() \
@@ -169,11 +171,12 @@ def exports():
 				if tag=="essential" \
 					or tag.startswith("deadline=") \
 					and Date.regexp.match(tag[9:]) \
-					and date<Date.deconvert(tag[9:]):
+					and date.date<Date.deconvert(tag[9:]):
 					return True
 		def periodic(self,date,group):
+			if not self.group or self.group.name!="periodic": return
 			tags = filter(lambda tag: tag in periodic, self.__tags)
-			if not any(periodic[name](date) for name in tags): return
+			if not any(periodic[name](date.date) for name in tags): return
 			temp = [tag for tag in self.__raw.split() \
 				if not istag(tag) or tag[prefixlen:] not in status and not tag.startswith("deadline=")]
 			return self.__class__( " ".join(temp), group )
@@ -195,7 +198,7 @@ def exports():
 		def task_add(self,task):
 			if isinstance(task,Task) and not any(t==task for t in self.__tasks):
 				self.__tasks.append(task)
-				self.__tasks.sort(key=lambda x: x.raw())
+				self.__tasks.sort(key=lambda x: x.raw().lower())
 				self.__tasks.sort(key=lambda x: x.group and x.group.name, reverse=True)
 		def task_remove(self,task):
 			if isinstance(task,Task) and task in self.__tasks:
@@ -254,7 +257,7 @@ def exports():
 				if self.__file.tell()==end: # last line
 					temp = line[2:12]
 					if line.startswith("#") and Date.regexp.match(temp):
-						self.__lastrun = Date.deconvert(temp)
+						self.__lastrun = Date(temp)
 						break
 					else: error("Premature File Termination")
 				elif line.startswith("\t"):
@@ -267,9 +270,8 @@ def exports():
 				else: error("Unexpected Pattern")
 			self.__process()
 		def __process(self):
-			if self.__lastrun==self.__date.date: return
-			name = Date.convert(self.__lastrun)
-			group = self.group(name)
+			if self.__lastrun.date==self.__date.date: return
+			group = self.group(self.__lastrun.str())
 			carry = []
 			for task in group.task_list():
 				temp = task.carryover(self.__lastrun)
@@ -277,15 +279,14 @@ def exports():
 				carry.append(task)
 				group.task_remove(task)
 			self.update(group)
-			while self.__lastrun < self.__date.date:
-				self.__lastrun += Date.oneday
-				name = Date.convert(self.__lastrun)
-				group = self.group(name)
+			while self.__lastrun.date < self.__date.date:
+				self.__lastrun = Date(self.__lastrun.date+Date.oneday)
+				group = self.group(self.__lastrun.str())
 				for task in carry:
 					group.task_add(task)
 					task.group = group
 				carry = []
-				if self.__lastrun < self.__date.date:
+				if self.__lastrun.date < self.__date.date:
 					for task in group.task_list():
 						temp = task.carryover(self.__lastrun)
 						if not temp: continue
@@ -338,7 +339,7 @@ def exports():
 				group = TaskGroup([],name)
 				for line in self.__extract(self.__position[name]).split("\n"):
 					if line.strip()!="":
-						group.task_add(Task(line[1:],group))
+						group.task_add(Task(line[1:],group,self.__date))
 				return group
 			elif name in Task.sg or Date.regexp.match(name):
 				return TaskGroup([],name)
@@ -368,6 +369,7 @@ def exports():
 	def action(z):
 		(x, y) = z.split(":",1) if ":" in z else (z, None)
 		if x in actions: return (x, y or "today")
+		elif y is None: return ("list", x)
 		else: raise Exception("Unknown Action")
 	def date(x): return Date("today") # development only
 	ap = argparse.ArgumentParser(description="A Command Line ToDoList Manager", add_help=False)
@@ -408,7 +410,7 @@ def exports():
 		if len(tasks)==1:
 			return tasks[0]
 		else:
-			print taskgroup.tabulate(date=args.date, heading=" ".join(args.data), index=True)
+			print taskgroup.tabulate(date=args.date, index=True)
 			while True:
 				index = prompt("Select Task by Index: ")
 				try: task = tasks[int(index)]
@@ -425,14 +427,20 @@ def exports():
 		line = " ".join(args.data)
 		if action=="list":
 			taskgroup = taskfile.select(name, args.data)
-			print taskgroup.tabulate(date=args.date, heading=line)
+			print taskgroup.tabulate(date=args.date)
 		elif action=="add":
 			if line=="": raise Exception("Empty Task")
-			task = Task(line,None)
+			task = Task(line,None,args.date)
 			name = args.date.translate(name) or name
 			if not __relocate(taskfile,task,name):
 				raise Exception("Invalid Date")
-			print task.group.tabulate(date=args.date, heading=name)			
+			print task.group.tabulate(date=args.date)
+			temp = task.periodic(args.date, None)
+			if temp:
+				taskgroup = taskfile.group(args.date.str())
+				temp.group = taskgroup
+				taskgroup.task_add(temp)
+				taskfile.update(taskgroup)
 		else:
 			task = __select(taskfile, name, args)
 			if action in ("edit","delete","move"):
@@ -441,9 +449,8 @@ def exports():
 				while True:
 					line = prompt("Edit Task: ",str(task))
 					if line!="": break
-				task.update(line)
-				name = args.date.translate(task.group.name) or args.date.str()
-				__relocate(taskfile,task,name)
+				task.update(line,args.date)
+				taskfile.update(task.group)
 			elif action=="delete":
 				task.group.task_remove(task)
 				taskfile.update(task.group)
@@ -484,7 +491,7 @@ def exports():
 			sys.exit(1)
 		except Exception as e:
 			print "Error:", e.message, "\n"
-	exports["main"] = __main
+	exports["main"] = main
 	return exports
 define(exports())
 

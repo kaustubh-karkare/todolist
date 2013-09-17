@@ -19,6 +19,8 @@ class Date:
 
 		if today is None:
 			pass
+		elif isinstance(today,datetime.date):
+			self.date = today
 		elif today in self.relative:
 			self.date += self.relative[today]*self.oneday
 		elif self.regexp.match(today):

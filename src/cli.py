@@ -12,6 +12,7 @@ argerror = argparse.ArgumentTypeError
 def action(z):
 	(x, y) = z.split(":",1) if ":" in z else (z, None)
 	if x in actions: return (x, y or "today")
+	elif y is None: return ("list", x)
 	else: raise Exception("Unknown Action")
 
 def date(x): return Date("today") # development only
@@ -61,7 +62,7 @@ def __select(taskfile,name,args):
 	if len(tasks)==1:
 		return tasks[0]
 	else:
-		print taskgroup.tabulate(date=args.date, heading=" ".join(args.data), index=True)
+		print taskgroup.tabulate(date=args.date, index=True)
 		while True:
 			index = prompt("Select Task by Index: ")
 			try: task = tasks[int(index)]
@@ -83,16 +84,24 @@ def __main():
 	
 	if action=="list":
 		taskgroup = taskfile.select(name, args.data)
-		print taskgroup.tabulate(date=args.date, heading=line)
+		print taskgroup.tabulate(date=args.date)
 
 	elif action=="add":
 		if line=="": raise Exception("Empty Task")
 		
-		task = Task(line,None)
+		task = Task(line,None,args.date)
 		name = args.date.translate(name) or name
 		if not __relocate(taskfile,task,name):
 			raise Exception("Invalid Date")
-		print task.group.tabulate(date=args.date, heading=name)			
+		print task.group.tabulate(date=args.date)
+
+		# in case of periodic tasks, is today included?
+		temp = task.periodic(args.date, None)
+		if temp:
+			taskgroup = taskfile.group(args.date.str())
+			temp.group = taskgroup
+			taskgroup.task_add(temp)
+			taskfile.update(taskgroup)
 
 	else:
 
@@ -104,9 +113,8 @@ def __main():
 			while True:
 				line = prompt("Edit Task: ",str(task))
 				if line!="": break
-			task.update(line)
-			name = args.date.translate(task.group.name) or args.date.str()
-			__relocate(taskfile,task,name)
+			task.update(line,args.date)
+			taskfile.update(task.group)
 
 		elif action=="delete":
 			task.group.task_remove(task)
@@ -157,4 +165,4 @@ def main():
 	except Exception as e:
 		print "Error:", e.message, "\n"
 
-exports["main"] = __main
+exports["main"] = main

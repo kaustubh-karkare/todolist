@@ -48,7 +48,7 @@ class TaskFile:
 			if self.__file.tell()==end: # last line
 				temp = line[2:12]
 				if line.startswith("#") and Date.regexp.match(temp):
-					self.__lastrun = Date.deconvert(temp)
+					self.__lastrun = Date(temp)
 					break
 				else: error("Premature File Termination")
 			elif line.startswith("\t"):
@@ -64,11 +64,10 @@ class TaskFile:
 
 	def __process(self):
 
-		if self.__lastrun==self.__date.date: return
+		if self.__lastrun.date==self.__date.date: return
 
 		# get list of incomplete tasks with deadlines
-		name = Date.convert(self.__lastrun)
-		group = self.group(name)
+		group = self.group(self.__lastrun.str())
 		carry = []
 		for task in group.task_list():
 			temp = task.carryover(self.__lastrun)
@@ -77,19 +76,18 @@ class TaskFile:
 			group.task_remove(task)
 		self.update(group)
 
-		while self.__lastrun < self.__date.date:
+		while self.__lastrun.date < self.__date.date:
 
 			# get the current group and add carried over tasks
-			self.__lastrun += Date.oneday
-			name = Date.convert(self.__lastrun)
-			group = self.group(name)
+			self.__lastrun = Date(self.__lastrun.date+Date.oneday)
+			group = self.group(self.__lastrun.str())
 			for task in carry:
 				group.task_add(task)
 				task.group = group
 			carry = []
 
 			# for all iterations except the last, calculate carry
-			if self.__lastrun < self.__date.date:
+			if self.__lastrun.date < self.__date.date:
 				for task in group.task_list():
 					temp = task.carryover(self.__lastrun)
 					if not temp: continue
@@ -160,7 +158,7 @@ class TaskFile:
 			group = TaskGroup([],name)
 			for line in self.__extract(self.__position[name]).split("\n"):
 				if line.strip()!="":
-					group.task_add(Task(line[1:],group))
+					group.task_add(Task(line[1:],group,self.__date))
 			return group
 		elif name in Task.sg or Date.regexp.match(name):
 			return TaskGroup([],name)

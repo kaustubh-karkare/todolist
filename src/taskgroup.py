@@ -17,7 +17,7 @@ class TaskGroup:
 	def task_add(self,task):
 		if isinstance(task,Task) and not any(t==task for t in self.__tasks):
 			self.__tasks.append(task)
-			self.__tasks.sort(key=lambda x: x.raw())
+			self.__tasks.sort(key=lambda x: x.raw().lower())
 			self.__tasks.sort(key=lambda x: x.group and x.group.name, reverse=True)
 
 	def task_remove(self,task):

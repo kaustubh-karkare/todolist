@@ -21,17 +21,17 @@ def istag(tag): return tag.startswith(prefix) and istagstr(tag[prefixlen:])
 
 class Task:
 
-	def __init__(self,raw,group):
-		self.update(raw)
+	def __init__(self,raw,group,date):
+		self.update(raw,date)
 		self.group = group
 
-	def update(self,raw):
+	def update(self,raw,date):
 		self.__raw = raw
 		self.__tags = [tag.lower() for tag in self.__raw.split() if istag(tag)]
 		self.__tags = [tag[prefixlen:] for tag in self.__tags]
 
 		temp = len(self.__tags)
-		if "essential" in self.__tags:
+		if "essential" in self.__tags or any(tag in periodic for tag in self.__tags):
 			self.__tags = [i for i in self.__tags if not i.startswith("deadline=")]
 		if len(self.__tags)<temp:
 			temp = [i for i in self.__raw.split() \
@@ -93,12 +93,13 @@ class Task:
 			if tag=="essential" \
 				or tag.startswith("deadline=") \
 				and Date.regexp.match(tag[9:]) \
-				and date<Date.deconvert(tag[9:]):
+				and date.date<Date.deconvert(tag[9:]):
 				return True
 
 	def periodic(self,date,group):
+		if not self.group or self.group.name!="periodic": return
 		tags = filter(lambda tag: tag in periodic, self.__tags)
-		if not any(periodic[name](date) for name in tags): return
+		if not any(periodic[name](date.date) for name in tags): return
 		temp = [tag for tag in self.__raw.split() \
 			if not istag(tag) or tag[prefixlen:] not in status and not tag.startswith("deadline=")]
 		return self.__class__( " ".join(temp), group )
