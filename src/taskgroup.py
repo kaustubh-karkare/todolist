@@ -13,8 +13,7 @@ class TaskGroup:
 		return self.__tasks.__repr__()
 
 	def task_list(self,unhide=False):
-		return [task for task in self.__tasks if not task.tag_check("hidden")] \
-			if unhide else self.__tasks
+		return [task for task in self.__tasks if unhide or not task.tag_check("hidden")]
 
 	def task_add(self,task):
 		if isinstance(task,Task) and not any(t==task for t in self.__tasks):

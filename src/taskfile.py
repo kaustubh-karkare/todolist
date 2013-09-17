@@ -60,17 +60,48 @@ class TaskFile:
 				else: groupname, self.__position[line2] = line2, [self.__file.tell()]*2
 			else: error("Unexpected Pattern")
 		
-		self.__periodic()
+		self.__process()
 
-	def __periodic(self):
+	def __process(self):
+
+		if self.__lastrun==self.__date.date: return
+
+		# get list of incomplete tasks with deadlines
+		name = Date.convert(self.__lastrun)
+		group = self.group(name)
+		carry = []
+		for task in group.task_list():
+			temp = task.carryover(self.__lastrun)
+			if not temp: continue
+			carry.append(task)
+			group.task_remove(task)
+		self.update(group)
+
 		while self.__lastrun < self.__date.date:
+
+			# get the current group and add carried over tasks
 			self.__lastrun += Date.oneday
 			name = Date.convert(self.__lastrun)
 			group = self.group(name)
-			for task in self.group("Periodic").task_list():
-				temp = task.iteration(self.__lastrun,group)
+			for task in carry:
+				group.task_add(task)
+				task.group = group
+			carry = []
+
+			# for all iterations except the last, calculate carry
+			if self.__lastrun < self.__date.date:
+				for task in group.task_list():
+					temp = task.carryover(self.__lastrun)
+					if not temp: continue
+					group.task_remove(task)
+					carry.append(task)
+
+			# for all periodic groups, add if applicable
+			for task in self.group("periodic").task_list():
+				temp = task.periodic(self.__lastrun,group)
 				if temp: group.task_add(temp)
-			self.update(name,group)
+
+			self.update(group)
 
 	def __serialize(self,taskgroup):
 		return "".join("\t"+task.raw()+"\n" for task in taskgroup.task_list(True))

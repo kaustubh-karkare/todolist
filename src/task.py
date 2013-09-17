@@ -7,7 +7,6 @@ periodic = { # function arguments: datetime.date instance
 for index,name in enumerate("monday tuesday wednesday thursday friday saturday sunday".split()):
 	periodic[name] = (lambda x: lambda date: date.weekday()==x)(index)
 
-essential = "essential"
 status = "failed done".split()
 
 prefix = "#"
@@ -26,16 +25,12 @@ class Task:
 
 	def update(self,raw):
 		self.__raw = raw
-		self.__tags = filter( istag, self.__raw.split() )
+		self.__tags = [tag.lower() for tag in self.__raw.split() if istag(tag)]
 		self.__tags = [tag[prefixlen:] for tag in self.__tags]
 
 		temp = len(self.__tags)
-		if essential in self.__tags:
-			self.__tags = [i for i in self.__tags if i not in periodic]
-		elif any(i in periodic for i in self.__tags):
+		if any(i in periodic for i in self.__tags):
 			self.__tags = [i for i in self.__tags if i not in status]
-		elif any(i in status for i in self.__tags):
-			if essential in self.__tags: self.__tags.remove(essential)
 		if len(self.__tags)<temp:
 			temp = [i for i in self.__raw.split() \
 				if not istag(i) or i[prefixlen:] in self.__tags]
@@ -57,11 +52,10 @@ class Task:
 		stat = next((tag for tag in self.__tags if tag in status), "pending").title()
 		return [self.group.name, text, tags, stat]
 
-	sg = "essential periodic".split() # special group names
+	sg = "periodic".split() # special group names
 
 	def groupname(self):
-		if essential in self.__tags: return "essential"
-		elif any([i in self.__tags for i in periodic]): return "periodic"
+		if any([i in self.__tags for i in periodic]): return "periodic"
 
 	def tag_add(self,tag):
 		if istagstr(tag) and tag not in self.__tags:
@@ -80,7 +74,16 @@ class Task:
 			return True
 		return False
 
-	def iteration(self,date,group):
+	def carryover(self,date):
+		if any(i in status for i in self.__tags): return
+		for tag in self.__tags:
+			if tag=="essential" \
+				or tag.startswith("deadline=") \
+				and Date.regexp.match(tag[9:]) \
+				and date<Date.deconvert(tag[9:]):
+				return True
+
+	def periodic(self,date,group):
 		tags = filter(lambda tag: tag in periodic, self.__tags)
 		if not any(periodic[name](date) for name in tags): return
 		temp = [i for i in self.__raw.split() \
