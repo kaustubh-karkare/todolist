@@ -384,6 +384,8 @@ def exports():
 			positive filters (match required), while those that start with the tilde 
 			character ("~") are considered negative (mismatch required). To match the
 			actual "~" symbol at the start of the word, use the "~~" prefix.
+		Warning: You may need to escape certain characters, if your shell has
+			reserved its normal form for a special purpose.
 	\n\
 	Optional Arguments
 		-h, --help
@@ -421,8 +423,6 @@ def exports():
 			+everyday | +weekday | +weekend | +monday | +tuesday | ... | +sunday
 			Note that Periodic Tags have a special meaning only if the containing
 			task in the special "periodic" group.
-		Warning: You may need to escape certain characters, if your shell has
-			reserved its normal form for a special purpose.
 	\n\
 	Usage Examples (not comprehensive)
 		$ alias todo='"""+__file__+"""'
@@ -463,7 +463,7 @@ def exports():
 	exports = {}
 	__dir__ = os.path.join(*os.path.split(__file__)[:-1]) \
 		if os.path.basename(__file__)!=__file__ else "."
-	operations = "list add edit delete move done failed".split()
+	operations = "list add edit delete move done failed help".split()
 	ap = argparse.ArgumentParser(description="A Command Line ToDoList Manager", add_help=False)
 	ap.add_argument("data", nargs="*", default=[])
 	ap.add_argument("-h","--help", action="store_true", default=False)
@@ -499,15 +499,15 @@ def exports():
 		if len(unknown)>0:
 			print help.basic
 			sys.exit(0)
-		if args.help:
-			print help.full
-			sys.exit(0)
-		realdate = args.date.date==datetime.date.today()
-		taskfile = TaskFile(args.file,args.date)
 		if len(args.data) and args.data[0] in operations:
 			operation = args.data[0]
 			args.data.pop(0)
 		else: operation = "list"
+		if args.help or operation=="help":
+			print help.full
+			sys.exit(0)
+		realdate = args.date.date==datetime.date.today()
+		taskfile = TaskFile(args.file,args.date)
 		if operation=="add":
 			if len(args.data)>0:
 				group = taskfile.group(args.data[0])

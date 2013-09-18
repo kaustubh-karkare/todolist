@@ -7,7 +7,7 @@ __dir__ = os.path.join(*os.path.split(__file__)[:-1]) \
 
 # Command Line Argument Validation
 
-operations = "list add edit delete move done failed".split()
+operations = "list add edit delete move done failed help".split()
 
 ap = argparse.ArgumentParser(description="A Command Line ToDoList Manager", add_help=False)
 ap.add_argument("data", nargs="*", default=[])
@@ -55,17 +55,17 @@ def __main():
 		print help.basic
 		sys.exit(0)
 
-	if args.help:
+	if len(args.data) and args.data[0] in operations:
+		operation = args.data[0]
+		args.data.pop(0)
+	else: operation = "list"
+
+	if args.help or operation=="help":
 		print help.full
 		sys.exit(0)
 
 	realdate = args.date.date==datetime.date.today()
 	taskfile = TaskFile(args.file,args.date)
-
-	if len(args.data) and args.data[0] in operations:
-		operation = args.data[0]
-		args.data.pop(0)
-	else: operation = "list"
 
 	if operation=="add":
 

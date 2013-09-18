@@ -15,6 +15,8 @@ Positional Arguments (data)
 		positive filters (match required), while those that start with the tilde 
 		character ("~") are considered negative (mismatch required). To match the
 		actual "~" symbol at the start of the word, use the "~~" prefix.
+	Warning: You may need to escape certain characters, if your shell has
+		reserved its normal form for a special purpose.
 \n\
 Optional Arguments
 	-h, --help
@@ -52,8 +54,6 @@ Tags (special and otherwise)
 		+everyday | +weekday | +weekend | +monday | +tuesday | ... | +sunday
 		Note that Periodic Tags have a special meaning only if the containing
 		task in the special "periodic" group.
-	Warning: You may need to escape certain characters, if your shell has
-		reserved its normal form for a special purpose.
 \n\
 Usage Examples (not comprehensive)
 	$ alias todo='"""+__file__+"""'
