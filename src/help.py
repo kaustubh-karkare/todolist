@@ -11,6 +11,10 @@ Positional Arguments (data)
 	The next argument is expected to be a TaskGroup*. (default=today)
 	In case of add-operation, the remaining arguments should be the new task.
 	In all other cases, the remaining arguments are task-group filters.
+	Note: In case of task-group filters, normal words are treated are considered
+		positive filters (match required), while those that start with the tilde 
+		character ("~") are considered negative (mismatch required). To match the
+		actual "~" symbol at the start of the word, use the "~~" prefix.
 \n\
 Optional Arguments
 	-h, --help

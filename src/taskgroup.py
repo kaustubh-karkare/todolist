@@ -37,7 +37,17 @@ class TaskGroup:
 		return prefix+result+"\n"
 
 	def select(self,words):
-		return self.__class__( self.__tasks if len(words)==0 else \
-			[task for task in self.__tasks if all(word in task for word in words)] )
+		words = [word for word in words if word!=""]
+		if len(words)==0: return self.__class__( self.__tasks )
+		tasks = []
+		for task in self.__tasks:
+			check = 1
+			for word in words:
+				if not word.startswith("~"): check &= word in task
+				elif word.startswith("~~"): check &= word[1:] in task
+				else: check &= word[1:] not in task
+			if check: tasks.append(task)
+		return self.__class__( tasks )
+			
 
 exports["TaskGroup"] = TaskGroup

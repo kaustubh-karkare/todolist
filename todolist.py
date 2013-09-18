@@ -203,8 +203,17 @@ def exports():
 				prefix = "="*(x/2-1)+" "+heading+" "+"="*(x-x/2-1)+"\n"
 			return prefix+result+"\n"
 		def select(self,words):
-			return self.__class__( self.__tasks if len(words)==0 else \
-				[task for task in self.__tasks if all(word in task for word in words)] )
+			words = [word for word in words if word!=""]
+			if len(words)==0: return self.__class__( self.__tasks )
+			tasks = []
+			for task in self.__tasks:
+				check = 1
+				for word in words:
+					if not word.startswith("~"): check &= word in task
+					elif word.startswith("~~"): check &= word[1:] in task
+					else: check &= word[1:] not in task
+				if check: tasks.append(task)
+			return self.__class__( tasks )
 	exports["TaskGroup"] = TaskGroup
 	return exports
 define(exports())
@@ -370,6 +379,10 @@ def exports():
 		The next argument is expected to be a TaskGroup*. (default=today)
 		In case of add-operation, the remaining arguments should be the new task.
 		In all other cases, the remaining arguments are task-group filters.
+		Note: In case of task-group filters, normal words are treated are considered
+			positive filters (match required), while those that start with the tilde 
+			character ("~") are considered negative (mismatch required). To match the
+			actual "~" symbol at the start of the word, use the "~~" prefix.
 	\n\
 	Optional Arguments
 		-h, --help
