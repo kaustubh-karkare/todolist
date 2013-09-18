@@ -82,7 +82,7 @@ def exports():
 	}
 	for index,name in enumerate("monday tuesday wednesday thursday friday saturday sunday".split()):
 		periodic[name] = (lambda x: lambda date: date.weekday()==x)(index)
-	status = "failed done".split()
+	status = "failed impossible done".split()
 	prefix = "#"
 	prefixlen = len(prefix)
 	def istagstr(str): return len(str)>0 and len(str.split())==1
@@ -115,8 +115,10 @@ def exports():
 		def __eq__(self,other): return isinstance(other,self.__class__) and self.__raw==other.__raw
 		def __ne__(self,other): return not self.__eq__(other)
 		def __hash__(self): return self.__raw.__hash__()
-		def __contains__(self,word): return isinstance(word,str) and word.lower() in self.__raw.lower()
 		def __repr__(self): return self.__raw
+		def __contains__(self,word):
+			suffix = " #pending" if len(filter(lambda tag: tag in status, self.__tags))==0 else ""
+			return isinstance(word,str) and word.lower() in self.__raw.lower()+suffix
 		def raw(self): return self.__raw
 		table_heading = "Date Task Tags Periodicity Deadline Status".title().split()
 		def table_fields(self):
@@ -353,11 +355,6 @@ def exports():
 				if absolute[key].regexp.match(name):
 					return self.__select(words, lambda current: \
 						absolute[key]( name, Date.deconvert(current) ) )
-			if name=="incomplete":
-				temp = [ self.group(current).select(words).task_list() \
-					for current in self.__position.keys() if current not in Task.sg ]
-				return TaskGroup(task for sublist in temp for task in sublist \
-					if task.status(self.__date)=="pending")
 			group = self.group(name)
 			return group and group.select(words)
 	exports["TaskFile"] = TaskFile
@@ -415,6 +412,7 @@ def exports():
 			in the special "periodic" group.
 	\n\
 	Usage Examples (not comprehensive)
+		$ alias todo='"""+__file__+"""'
 		$ todo add Catch the damn mouse. \#essential
 		$ todo list today
 		$ todo edit mouse # append " #food"
@@ -452,7 +450,7 @@ def exports():
 	exports = {}
 	__dir__ = os.path.join(*os.path.split(__file__)[:-1]) \
 		if os.path.basename(__file__)!=__file__ else "."
-	operations = "list add edit delete move pending done failed".split()
+	operations = "list add edit delete move done failed".split()
 	def date(x): return Date("today") # development only
 	ap = argparse.ArgumentParser(description="A Command Line ToDoList Manager", add_help=False)
 	ap.add_argument("data", nargs="*", default=[])
@@ -560,15 +558,14 @@ def exports():
 				__relocate(taskfile,task,group.name)
 			elif operation=="done":
 				task.tag_remove("failed")
+				task.tag_remove("impossible")
 				task.tag_add("done")
 				taskfile.update(task.group)
 			elif operation=="failed":
-				task.tag_remove("done")
 				task.tag_add("failed")
-				taskfile.update(task.group)
-			elif operation=="pending":
+				task.tag_remove("impossible")
 				task.tag_remove("done")
-				task.tag_remove("failed")
+				taskfile.update(task.group)
 			else: raise Exception("Unknown Action")
 			if operation!="delete":
 				print TaskGroup([task]).tabulate()

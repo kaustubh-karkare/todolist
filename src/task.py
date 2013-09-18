@@ -9,7 +9,7 @@ periodic = { # function arguments: datetime.date instance
 for index,name in enumerate("monday tuesday wednesday thursday friday saturday sunday".split()):
 	periodic[name] = (lambda x: lambda date: date.weekday()==x)(index)
 
-status = "failed done".split()
+status = "failed impossible done".split()
 
 prefix = "#"
 prefixlen = len(prefix)
@@ -52,8 +52,10 @@ class Task:
 	def __eq__(self,other): return isinstance(other,self.__class__) and self.__raw==other.__raw
 	def __ne__(self,other): return not self.__eq__(other)
 	def __hash__(self): return self.__raw.__hash__()
-	def __contains__(self,word): return isinstance(word,str) and word.lower() in self.__raw.lower()
 	def __repr__(self): return self.__raw
+	def __contains__(self,word):
+		suffix = " #pending" if len(filter(lambda tag: tag in status, self.__tags))==0 else ""
+		return isinstance(word,str) and word.lower() in self.__raw.lower()+suffix
 
 	def raw(self): return self.__raw
 

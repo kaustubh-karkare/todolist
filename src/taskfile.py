@@ -193,12 +193,6 @@ class TaskFile:
 				return self.__select(words, lambda current: \
 					absolute[key]( name, Date.deconvert(current) ) )
 
-		if name=="incomplete":
-			temp = [ self.group(current).select(words).task_list() \
-				for current in self.__position.keys() if current not in Task.sg ]
-			return TaskGroup(task for sublist in temp for task in sublist \
-				if task.status(self.__date)=="pending")
-
 		group = self.group(name)
 		return group and group.select(words)
 

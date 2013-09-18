@@ -54,6 +54,7 @@ Tags (special and otherwise)
 		in the special "periodic" group.
 \n\
 Usage Examples (not comprehensive)
+	$ alias todo='"""+__file__+"""'
 	$ todo add Catch the damn mouse. \#essential
 	$ todo list today
 	$ todo edit mouse # append " #food"

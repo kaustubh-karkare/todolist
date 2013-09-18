@@ -7,7 +7,7 @@ __dir__ = os.path.join(*os.path.split(__file__)[:-1]) \
 
 # Command Line Argument Validation
 
-operations = "list add edit delete move pending done failed".split()
+operations = "list add edit delete move done failed".split()
 def date(x): return Date("today") # development only
 
 ap = argparse.ArgumentParser(description="A Command Line ToDoList Manager", add_help=False)
@@ -142,17 +142,15 @@ def __main():
 
 		elif operation=="done":
 			task.tag_remove("failed")
+			task.tag_remove("impossible")
 			task.tag_add("done")
 			taskfile.update(task.group)
 
 		elif operation=="failed":
-			task.tag_remove("done")
 			task.tag_add("failed")
-			taskfile.update(task.group)
-
-		elif operation=="pending":
+			task.tag_remove("impossible")
 			task.tag_remove("done")
-			task.tag_remove("failed")
+			taskfile.update(task.group)
 
 		else: raise Exception("Unknown Action")
 
