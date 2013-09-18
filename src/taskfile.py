@@ -81,7 +81,7 @@ class TaskFile:
 		group = self.group(self.__lastrun.str())
 		carry = []
 		for task in group.task_list():
-			temp = task.carryover(self.__lastrun)
+			temp = task.carryover()
 			if not temp: continue
 			carry.append(task)
 			group.task_remove(task)
@@ -100,14 +100,14 @@ class TaskFile:
 			# for all iterations except the last, calculate carry
 			if self.__lastrun.date < self.__date.date:
 				for task in group.task_list():
-					temp = task.carryover(self.__lastrun)
+					temp = task.carryover()
 					if not temp: continue
 					group.task_remove(task)
 					carry.append(task)
 
 			# for all periodic groups, add if applicable
 			for task in self.group("periodic").task_list():
-				temp = task.periodic(self.__lastrun,group)
+				temp = task.periodic(group)
 				if temp: group.task_add(temp)
 
 			self.update(group)
