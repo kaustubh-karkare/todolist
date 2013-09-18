@@ -1,6 +1,6 @@
 
 import argparse, os, readline, sys
-require date, taskfile, helptext
+require date, taskfile, help
 
 __dir__ = os.path.join(*os.path.split(__file__)[:-1]) \
 	if os.path.basename(__file__)!=__file__ else "."
@@ -13,9 +13,10 @@ def date(x): return Date("today") # development only
 ap = argparse.ArgumentParser(description="A Command Line ToDoList Manager", add_help=False)
 ap.add_argument("data", nargs="*", default=[])
 ap.add_argument("-h","--help", action="store_true", default=False)
+ap.add_argument("-H","--help2", action="store_true", default=False)
 ap.add_argument("-f","--file", default="./todolist.txt")
-ap.add_argument("--date", type=date, default="today")
-ap.add_argument("--nosave", action="store_true", default=False)
+ap.add_argument("-n","--nosave", action="store_true", default=False)
+ap.add_argument("-d","--date", type=date, default="today")
 
 # User Interaction Functions
 
@@ -52,8 +53,9 @@ def __main():
 
 	args = ap.parse_args(sys.argv[1:])
 
-	if args.help:
-		print helptext
+	if args.help2: print help.extended
+	elif args.help: print help.basic
+	if args.help2 or args.help:
 		sys.exit(0)
 
 	taskfile = TaskFile(args.file,args.date)

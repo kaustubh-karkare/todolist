@@ -28,29 +28,6 @@ def exports():
 define(exports())
 def exports():
 	exports = {}
-	helptext = [
-		"A Command Line ToDoList Manager",
-		"\nUsage: todolist.py [-h] [-f <filepath>] [action] [data]",
-		"\nPositional Arguments:",
-		"	action (default=\"list:today\") = [(<operation>)[:<taskgroup>]]",
-		"		<operation> = list | add | done | failed | pending | edit | move | delete",
-		"		<taskgroup> = This can be either a date, a range or a special category.",
-		"	data = [<word>*]",
-		"		In case of the add-operation, this is the task string itself (including tags).",
-		"		In all other cases, the words are used as task filters for the selected group.",
-		"\nOptional Arguments:",
-		"	-h, --help",
-		"		Show this help message and exit.",
-		"	-f <filepath>, --file <filepath> (default=\"./todolist.txt\")",
-		"		The properly formatted text-file to be used as the data-source.",
-		"\nCreated by: Kaustubh Karkare\n"
-	]
-	helptext = "\n".join(helptext).replace("\t"," "*4)
-	exports["helptext"] = helptext
-	return exports
-define(exports())
-def exports():
-	exports = {}
 	class Date:
 		relative = {
 			"yesterday": -1,
@@ -373,6 +350,79 @@ def exports():
 define(exports())
 def exports():
 	exports = {}
+	text = [
+		"A Command Line ToDoList Manager",
+		"\nUsage: ./"+os.path.basename(sys.argv[0])+" [-h] [-H] [-f <filepath>] [data ...]",
+	], [
+		"Positional Arguments (data)",
+		"	The first argument is expected to be an Operation*. (default=list)",
+		"	The next argument is expected to be a TaskGroup*. (default=today)",
+		"	In case of add-operation, the remaining arguments should be the new task.",
+		"	In all other cases, the remaining arguments are task-group filters.",
+	], [
+		"Optional Arguments",
+		"	-h, --help",
+		"		Show the basic help message and exit.",
+		"	-H, --help2",
+		"		Show the extended help message and exit.",
+		"	-f <filepath>, --file <filepath> (default=\"./todolist.txt\")",
+		"		The properly formatted text-file to be used as the data-source.",
+	], [
+		"Tags (special and otherwise)",
+		"	Basics",
+		"		Tasks can include tags, which are basically string without whitespace,",
+		"		and prefixed with the hash (#) symbol. While you may create your own",
+		"		tags, certain tags have special meanings as explained below.",
+		"	Status Tags",
+		"		These tags are used to indicate the current status of a task:",
+		"		#done | #failed | #impossible (lack of a status tag => #pending)",
+		"	Essential Tasks",
+		"		Tasks tagged #essential are carried forward from the previous day",
+		"		to the current day, if they have not yet been done or failed.",
+		"	Tasks with deadlines",
+		"		These are similar to #essential tasks, but are not carried forward",
+		"		beyond the specified date. To add a deadline to a task, add the tag:",
+		"		#deadline=<taskgroup> (requires reference to a specific date)",
+		"	Periodic Tasks",
+		"		Tasks in the \"periodic\" taskgroup are automatically added to the group",
+		"		corresponding to the current date based on the following special tags:",
+		"		#everyday | #weekday | #weekend | #monday | #tuesday | ... | #sunday",
+	], [
+		"File (data-source)",
+		"	The format of file being used as the data-source has kept extremely simple",
+		"	so that it can be easily read and manually modified is necessary.",
+		"	(1) Lines with no indenting declare a TaskGroup, which must be a specific",
+		"		date (format=YYYY-MM-DD) or a special group (\"Periodic\").",
+		"	(2) Once a TaskGroup has been declared, the following lines specify the",
+		"		actual task (with tags). A single horizontal tab is used as indentation.",
+		"	(3) The last line of the file starts with a hash (#), followed by a space,",
+		"		and finally the last script run date (format=YYYY-MM-DD).",
+		"	Any deviations from the above specified rules will result in an error.",
+		"	Warning: Do not change the last line of the file! Doing so may result in",
+		"		unexpected, unwanted & irreversible changes and inconsistencies!",
+	], [
+		"Notes",
+		"	(1) Operations : list | add | done | failed | edit | move | delete",
+		"	(2) TaskGroup : Either a specific date in the format YYYY-MM-DD, or",
+		"		today | tomorrow | thisweek | yesterday | lastweek | nextweek",
+		"		thismonth | lastmonth | nextmonth | forever | periodic",
+		"	(3) Weeks are assumed to start from a Monday and end on a Sunday.",
+		"	(4) Periodic Tags have a special meaning only if the containing task",
+		"		in the special \"periodic\" group.",
+	], [
+		"Created by: Kaustubh Karkare\n"
+	]
+	def merge(*a):
+		temp = ("\n".join(j) for i,j in enumerate(text) if i in a)
+		return "\n\n".join(temp).replace("	"," "*4)
+	class help:
+		basic = merge(0,1,2,6)
+		extended = merge(0,1,2,3,4,5,6)
+	exports["help"] = help
+	return exports
+define(exports())
+def exports():
+	exports = {}
 	__dir__ = os.path.join(*os.path.split(__file__)[:-1]) \
 		if os.path.basename(__file__)!=__file__ else "."
 	operations = "list add edit delete move pending done failed".split()
@@ -380,9 +430,10 @@ def exports():
 	ap = argparse.ArgumentParser(description="A Command Line ToDoList Manager", add_help=False)
 	ap.add_argument("data", nargs="*", default=[])
 	ap.add_argument("-h","--help", action="store_true", default=False)
+	ap.add_argument("-H","--help2", action="store_true", default=False)
 	ap.add_argument("-f","--file", default="./todolist.txt")
-	ap.add_argument("--date", type=date, default="today")
-	ap.add_argument("--nosave", action="store_true", default=False)
+	ap.add_argument("-n","--nosave", action="store_true", default=False)
+	ap.add_argument("-d","--date", type=date, default="today")
 	def confirm(msg="Are you sure?"):
 		while True:
 			x = raw_input(msg+" (yes/no) ")
@@ -409,8 +460,9 @@ def exports():
 	def __main():
 		print
 		args = ap.parse_args(sys.argv[1:])
-		if args.help:
-			print helptext
+		if args.help2: print help.extended
+		elif args.help: print help.basic
+		if args.help2 or args.help:
 			sys.exit(0)
 		taskfile = TaskFile(args.file,args.date)
 		if len(args.data) and args.data[0] in operations:
