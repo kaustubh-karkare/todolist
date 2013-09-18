@@ -36,35 +36,35 @@ Operation & TaskGroup Options
 Tags (special and otherwise)
 	Basics
 		Tasks can include tags, which are basically string without whitespace,
-		and prefixed with the hash (#) symbol. While you may create your own
+		and prefixed with the plus (+) symbol. While you may create your own
 		tags, certain tags have special meanings as explained below.
 	Status Tags
 		These tags are used to indicate the current status of a task:
-		#done | #failed | #impossible (lack of a status tag => #pending)
+		+done | +failed | +impossible (lack of a status tag => +pending)
 	Tasks with deadlines
-		Tasks with a #deadline=<taskgroup> tag, if pending, are carried forward
+		Tasks with a +deadline=<taskgroup> tag, if pending, are carried forward
 		from the previous day to the current day. The <taskgroup> must refer
 		a specific date, with the exception of the string "none", which just
 		means that there is no stop-date for the carry-forwards.
 	Periodic Tasks
 		Tasks in the "periodic" taskgroup are automatically added to the group
 		corresponding to the current date based on the following special tags:
-		#everyday | #weekday | #weekend | #monday | #tuesday | ... | #sunday
+		+everyday | +weekday | +weekend | +monday | +tuesday | ... | +sunday
 		Note that Periodic Tags have a special meaning only if the containing
 		task in the special "periodic" group.
-	Warning: You may need to escape certain characters (like the hash for tags),
-		if your shell has reserved its normal form for a special purpose.
+	Warning: You may need to escape certain characters, if your shell has
+		reserved its normal form for a special purpose.
 \n\
 Usage Examples (not comprehensive)
 	$ alias todo='"""+__file__+"""'
-	$ todo add Catch the damn mouse. \#essential
+	$ todo add Catch the damn mouse. \+essential
 	$ todo list today
-	$ todo edit mouse # append " #food"
+	$ todo edit mouse # append " +food"
 	$ todo list food
 	$ todo done catch
 	$ todo add 2013-09-15 Make plans for World Domination.
 	$ todo list 2013-09
-	$ todo add periodic Stare creepily at human. \#thursday
+	$ todo add periodic Stare creepily at human. \+thursday
 \n\
 File (data-source)
 	The format of file being used as the data-source has kept extremely simple

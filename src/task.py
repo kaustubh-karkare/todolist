@@ -11,7 +11,7 @@ for index,name in enumerate("monday tuesday wednesday thursday friday saturday s
 
 status = "failed impossible done".split()
 
-prefix = "#"
+prefix = "+"
 prefixlen = len(prefix)
 
 def istagstr(str): return len(str)>0 and len(str.split())==1
@@ -54,7 +54,8 @@ class Task:
 	def __hash__(self): return self.__raw.__hash__()
 	def __repr__(self): return self.__raw
 	def __contains__(self,word):
-		suffix = " #pending" if len(filter(lambda tag: tag in status, self.__tags))==0 else ""
+		suffix = "" if len(filter(lambda tag: tag in status, self.__tags))!=0 \
+			else " "+prefix+"pending"
 		return isinstance(word,str) and word.lower() in self.__raw.lower()+suffix
 
 	def raw(self): return self.__raw
