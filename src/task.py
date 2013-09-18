@@ -112,6 +112,6 @@ class Task:
 		if not any(periodic[name](date.date) for name in tags): return
 		temp = [tag for tag in self.__raw.split() \
 			if not istag(tag) or tag[prefixlen:] not in status and not tag.startswith("deadline=")]
-		return self.__class__( " ".join(temp), group )
+		return self.__class__( " ".join(temp), group, date )
 
 exports["Task"] = Task

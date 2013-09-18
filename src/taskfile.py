@@ -162,7 +162,7 @@ class TaskFile:
 			return group
 		elif name in Task.sg or Date.regexp.match(name):
 			return TaskGroup([],name)
-		else: raise Exception("Invalid Group")
+		# else: raise Exception("Invalid Group")
 
 	def select(self,name,words):
 
@@ -179,6 +179,7 @@ class TaskFile:
 			return TaskGroup(task for sublist in temp for task in sublist \
 				if task.status(self.__date)=="pending")
 
-		return self.group(name).select(words)
+		group = self.group(name)
+		return group and group.select(words)
 
 exports["TaskFile"] = TaskFile
