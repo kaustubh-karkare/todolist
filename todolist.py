@@ -94,22 +94,23 @@ def exports():
 			self.update(raw)
 		def update(self,raw):
 			self.__raw = raw
-			self.__tags = [tag.lower() for tag in self.__raw.split() if istag(tag)]
-			self.__tags = [tag[prefixlen:] for tag in self.__tags]
-			temp = len(self.__tags)
-			if "essential" in self.__tags or any(tag in periodic for tag in self.__tags):
-				self.__tags = [i for i in self.__tags if not i.startswith("deadline=")]
+			self.__tags = [tag.lower()[prefixlen:] for tag in self.__raw.split() if istag(tag)]
 			temp = []
+			i = prefixlen+9 # len(prefix+"deadline=")
 			for tag in self.__raw.split():
 				if not istag(tag): temp.append(tag)
 				elif tag[prefixlen:] in self.__tags:
 					if tag[prefixlen:].startswith("deadline="):
-						x = self.__date.translate(tag[prefixlen+9:])
+						date = tag[i:]
+						if date=="none":
+							temp.append(tag)
+							continue
+						date = self.__date.translate(date)
 						self.__tags.remove(tag[prefixlen:])
-						if x:
-							x = tag[:prefixlen+9]+x
-							temp.append(x)
-							self.__tags.append(x[prefixlen:])
+						if date:
+							date = tag[:i]+date
+							temp.append(date)
+							self.__tags.append(date[prefixlen:])
 					else: temp.append(tag)
 			self.__raw = " ".join(temp)
 		def __eq__(self,other): return isinstance(other,self.__class__) and self.__raw==other.__raw
@@ -125,10 +126,10 @@ def exports():
 			groupname = self.group.name if self.group else ""
 			text = " ".join(word for word in self.__raw.split() if not istag(word))
 			tags = ", ".join(tag for tag in self.__tags if tag not in status and \
-				tag not in periodic and not tag.startswith("deadline=") and tag!="essential")
+				tag not in periodic and not tag.startswith("deadline="))
 			freq = ", ".join([tag for tag in self.__tags if tag in periodic])
-			deadline = next((tag[9:] for tag in self.__tags if tag.startswith("deadline=")), \
-				"No Limit" if "essential" in self.__tags else "")
+			deadline = next(("No Limit" if tag[9:]=="none" else tag[9:] \
+				for tag in self.__tags if tag.startswith("deadline=")),"")
 			stat = self.status().title()
 			return [groupname, text, tags, freq, deadline, stat]
 		sg = "periodic".split() # special group names
@@ -149,19 +150,16 @@ def exports():
 		def status(self):
 			result = next((tag for tag in self.__tags if tag in status),None)
 			if result: return result
-			if "essential" in self.__tags: return "pending"
 			deadline = next((tag[9:] for tag in self.__tags if tag.startswith("deadline=")),None)
-			deadline = deadline and Date.deconvert(deadline) \
-				or self.group and Date.regexp.match(self.group.name) and Date.deconvert(self.group.name)
+			if deadline: deadline = deadline!="none" and Date.deconvert(deadline)
+			else: deadline = self.group and Date.regexp.match(self.group.name) and Date.deconvert(self.group.name)
 			if not deadline or self.__date.date<=deadline: return "pending"
 			return "failed"
 		def carryover(self):
 			if any(i in status for i in self.__tags): return
 			for tag in self.__tags:
-				if tag=="essential" \
-					or tag.startswith("deadline=") \
-					and Date.regexp.match(tag[9:]) \
-					and self.__date.date<Date.deconvert(tag[9:]):
+				if tag.startswith("deadline=") and ( tag[9:]=="none" or \
+					Date.regexp.match(tag[9:]) and self.__date.date<Date.deconvert(tag[9:]) ):
 					return True
 		def periodic(self,group):
 			if not self.group or self.group.name!="periodic": return
@@ -397,19 +395,18 @@ def exports():
 			tags, certain tags have special meanings as explained below.
 		Status Tags
 			These tags are used to indicate the current status of a task:
-		Essential Tasks
-			Tasks tagged #essential are carried forward from the previous day
-			to the current day, if they have not yet been done or failed.
 		Tasks with deadlines
-			These are similar to #essential tasks, but are not carried forward
-			beyond the specified date. To add a deadline to a task, add the tag:
+			Tasks with a #deadline=<taskgroup> tag, if pending, are carried forward
+			from the previous day to the current day. The <taskgroup> must refer
+			a specific date, with the exception of the string "none", which just
+			means that there is no stop-date for the carry-forwards.
 		Periodic Tasks
 			Tasks in the "periodic" taskgroup are automatically added to the group
 			corresponding to the current date based on the following special tags:
+			Note that Periodic Tags have a special meaning only if the containing
+			task in the special "periodic" group.
 		Warning: You may need to escape certain characters (like the hash for tags),
 			if your shell has reserved its normal form for a special purpose.
-		Note: Periodic Tags have a special meaning only if the containing task
-			in the special "periodic" group.
 	\n\
 	Usage Examples (not comprehensive)
 		$ alias todo='"""+__file__+"""'

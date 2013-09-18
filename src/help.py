@@ -37,21 +37,19 @@ Tags (special and otherwise)
 	Status Tags
 		These tags are used to indicate the current status of a task:
 		#done | #failed | #impossible (lack of a status tag => #pending)
-	Essential Tasks
-		Tasks tagged #essential are carried forward from the previous day
-		to the current day, if they have not yet been done or failed.
 	Tasks with deadlines
-		These are similar to #essential tasks, but are not carried forward
-		beyond the specified date. To add a deadline to a task, add the tag:
-		#deadline=<taskgroup> (requires reference to a specific date)
+		Tasks with a #deadline=<taskgroup> tag, if pending, are carried forward
+		from the previous day to the current day. The <taskgroup> must refer
+		a specific date, with the exception of the string "none", which just
+		means that there is no stop-date for the carry-forwards.
 	Periodic Tasks
 		Tasks in the "periodic" taskgroup are automatically added to the group
 		corresponding to the current date based on the following special tags:
 		#everyday | #weekday | #weekend | #monday | #tuesday | ... | #sunday
+		Note that Periodic Tags have a special meaning only if the containing
+		task in the special "periodic" group.
 	Warning: You may need to escape certain characters (like the hash for tags),
 		if your shell has reserved its normal form for a special purpose.
-	Note: Periodic Tags have a special meaning only if the containing task
-		in the special "periodic" group.
 \n\
 Usage Examples (not comprehensive)
 	$ alias todo='"""+__file__+"""'
