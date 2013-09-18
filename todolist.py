@@ -166,7 +166,7 @@ def exports():
 			tags = filter(lambda tag: tag in periodic, self.__tags)
 			if not any(periodic[name](self.__date.date) for name in tags): return
 			temp = [tag for tag in self.__raw.split() \
-				if not istag(tag) or tag[prefixlen:] not in status and not tag.startswith("deadline=")]
+				if not istag(tag) or tag[prefixlen:] not in status]
 			return self.__class__( " ".join(temp), group, self.__date )
 	exports["Task"] = Task
 	return exports
@@ -210,7 +210,7 @@ def exports():
 define(exports())
 def exports():
 	exports = {}
-	daterange = {
+	relative = {
 		"forever": lambda ref, now: True,
 		"thisweek": lambda ref, now: Date.weekdiff(ref,now)==0,
 		"nextweek": lambda ref, now: Date.weekdiff(ref,now)==1,
@@ -218,7 +218,15 @@ def exports():
 		"thismonth": lambda ref, now: Date.monthdiff(ref,now)==0,
 		"nextmonth": lambda ref, now: Date.monthdiff(ref,now)==1,
 		"lastmonth": lambda ref, now: Date.monthdiff(ref,now)==-1,
+		"future": lambda ref, now: ref<now,
+		"past": lambda ref, now: ref>now,
 	}
+	absolute = {
+		"month": lambda ref, now: map(int,ref.split("-"))==[now.year,now.month],
+		"year": lambda ref, now: int(ref)==now.year
+	}
+	absolute["month"].regexp = re.compile("^\d{4}-\d{2}$")
+	absolute["year"].regexp = re.compile("^\d{4}$")
 	class TaskFile:
 		def __init__(self,name,date):
 			self.__name = name
@@ -331,13 +339,20 @@ def exports():
 				return group
 			elif name in Task.sg or Date.regexp.match(name):
 				return TaskGroup([],name)
+		def __select(self,words,condition):
+			temp = [ self.group(current).select(words).task_list() \
+				for current in self.__position.keys() \
+				if current not in Task.sg and condition(current) ]
+			return TaskGroup(task for sublist in temp for task in sublist)
 		def select(self,name,words):
 			name = name.lower()
-			if name in daterange:
-				temp = [ self.group(current).select(words).task_list() \
-					for current in self.__position.keys() if current not in Task.sg \
-					and name in daterange and daterange[name]( self.__date.date, Date.deconvert(current) ) ]
-				return TaskGroup(task for sublist in temp for task in sublist)
+			if name in relative:
+				return self.__select(words, lambda current: \
+					relative[name]( self.__date.date, Date.deconvert(current) ) )
+			for key in absolute:
+				if absolute[key].regexp.match(name):
+					return self.__select(words, lambda current: \
+						absolute[key]( name, Date.deconvert(current) ) )
 			if name=="incomplete":
 				temp = [ self.group(current).select(words).task_list() \
 					for current in self.__position.keys() if current not in Task.sg ]
@@ -353,27 +368,29 @@ def exports():
 	text = ["""\
 	A Command Line ToDoList Manager
 	\n\
-	Usage: ./"+os.path.basename(sys.argv[0])+" [-h] [-H] [-f <filepath>] [data ...]
-	\n\
+	Usage: ./"""+os.path.basename(sys.argv[0])+""" [-h] [-H] [-f <filepath>] [data ...]
+	""", """\
 	Positional Arguments (data)
 		The first argument is expected to be an Operation*. (default=list)
 		The next argument is expected to be a TaskGroup*. (default=today)
 		In case of add-operation, the remaining arguments should be the new task.
 		In all other cases, the remaining arguments are task-group filters.
 	\n\
-	Optional Arguments"
-		-h, --help"
-			Show the basic help message and exit."
-		-H, --help2"
-			Show the extended help message and exit."
-		-f <filepath>, --file <filepath> (default=\"./todolist.txt\")"
-			The properly formatted text-file to be used as the data-source."
-	""", """\
+	Optional Arguments
+		-h, --help
+			Show this help message and exit.
+		-f <filepath>, --file <filepath> (default="./todolist.txt")
+			The properly formatted text-file to be used as the data-source.
+	\n\
 	Operation & TaskGroup Options
 		Operations = list | add | done | failed | edit | move | delete
 		TaskGroup = Either a specific date in the format YYYY-MM-DD, or
-			today | tomorrow | thisweek | yesterday | lastweek | nextweek
-			thismonth | lastmonth | nextmonth | forever | periodic
+			today | tomorrow | thisweek | yesterday | lastweek | nextweek |
+			thismonth | lastmonth | nextmonth | YYYY-MM | YYYY | forever |
+			future | past | periodic
+		Note: You will need to specify an exact date (and not a range) while
+			adding new tasks. By default, tasks are added to the group
+			corresponding to the current date.
 		Note: Weeks are assumed to start from a Monday and end on a Sunday.
 	\n\
 	Tags (special and otherwise)
@@ -392,8 +409,20 @@ def exports():
 		Periodic Tasks
 			Tasks in the "periodic" taskgroup are automatically added to the group
 			corresponding to the current date based on the following special tags:
+		Warning: You may need to escape certain characters (like the hash for tags),
+			if your shell has reserved its normal form for a special purpose.
 		Note: Periodic Tags have a special meaning only if the containing task
 			in the special "periodic" group.
+	\n\
+	Usage Examples (not comprehensive)
+		$ todo add Catch the damn mouse.
+		$ todo list today
+		$ todo edit mouse # append " #food"
+		$ todo list food
+		$ todo done food
+		$ todo add 2013-09-15 Make plans for World Domination. \#essential
+		$ todo list future
+		$ todo add periodic Stare creepily at human slave. \#everyday
 	\n\
 	File (data-source)
 		The format of file being used as the data-source has kept extremely simple
@@ -407,15 +436,15 @@ def exports():
 		Any deviations from the above specified rules will result in an error.
 		Warning: Do not change the last line of the file! Doing so may result in
 			unexpected, unwanted & irreversible changes and inconsistencies!
-	""", """\
+	\n\
 	Created by: Kaustubh Karkare
 	"""]
 	def merge(*a):
 		temp = (textwrap.dedent(j) for i,j in enumerate(text) if i in a)
 		return "\n".join(temp).replace("	"," "*4)
 	class help:
-		basic = merge(0,2)
-		extended = merge(0,1,2)
+		basic = merge(0)
+		full = merge(0,1)
 	exports["help"] = help
 	return exports
 define(exports())
@@ -428,7 +457,6 @@ def exports():
 	ap = argparse.ArgumentParser(description="A Command Line ToDoList Manager", add_help=False)
 	ap.add_argument("data", nargs="*", default=[])
 	ap.add_argument("-h","--help", action="store_true", default=False)
-	ap.add_argument("-H","--help2", action="store_true", default=False)
 	ap.add_argument("-f","--file", default="./todolist.txt")
 	ap.add_argument("-n","--nosave", action="store_true", default=False)
 	ap.add_argument("-d","--date", type=date, default="today")
@@ -458,9 +486,8 @@ def exports():
 	def __main():
 		print
 		args = ap.parse_args(sys.argv[1:])
-		if args.help2: print help.extended
-		elif args.help: print help.basic
-		if args.help2 or args.help:
+		if args.help:
+			print help.full
 			sys.exit(0)
 		taskfile = TaskFile(args.file,args.date)
 		if len(args.data) and args.data[0] in operations:

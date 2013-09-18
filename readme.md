@@ -1,3 +1,14 @@
+## Command Line To-Do-List Manager
 
-	python src/__build.py todolist.py
-	./todolist.py # already available
+### Usage
+
+```bash
+alias todo='/home/cat/todolist.py'
+todo --help
+```
+
+### Development
+
+```bash
+./src/__build.py ./todolist.py
+```

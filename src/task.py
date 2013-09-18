@@ -114,7 +114,7 @@ class Task:
 		tags = filter(lambda tag: tag in periodic, self.__tags)
 		if not any(periodic[name](self.__date.date) for name in tags): return
 		temp = [tag for tag in self.__raw.split() \
-			if not istag(tag) or tag[prefixlen:] not in status and not tag.startswith("deadline=")]
+			if not istag(tag) or tag[prefixlen:] not in status]
 		return self.__class__( " ".join(temp), group, self.__date )
 
 exports["Task"] = Task

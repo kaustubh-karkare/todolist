@@ -1,8 +1,8 @@
 
-import os
+import datetime, os, re
 require date, task, taskgroup
 
-daterange = {
+relative = {
 	"forever": lambda ref, now: True,
 
 	"thisweek": lambda ref, now: Date.weekdiff(ref,now)==0,
@@ -12,7 +12,18 @@ daterange = {
 	"thismonth": lambda ref, now: Date.monthdiff(ref,now)==0,
 	"nextmonth": lambda ref, now: Date.monthdiff(ref,now)==1,
 	"lastmonth": lambda ref, now: Date.monthdiff(ref,now)==-1,
+
+	"future": lambda ref, now: ref<now,
+	"past": lambda ref, now: ref>now,
 }
+
+absolute = {
+	"month": lambda ref, now: map(int,ref.split("-"))==[now.year,now.month],
+	"year": lambda ref, now: int(ref)==now.year
+}
+
+absolute["month"].regexp = re.compile("^\d{4}-\d{2}$")
+absolute["year"].regexp = re.compile("^\d{4}$")
 
 class TaskFile:
 
@@ -164,14 +175,23 @@ class TaskFile:
 			return TaskGroup([],name)
 		# else: raise Exception("Invalid Group")
 
-	def select(self,name,words):
+	def __select(self,words,condition):
+		temp = [ self.group(current).select(words).task_list() \
+			for current in self.__position.keys() \
+			if current not in Task.sg and condition(current) ]
+		return TaskGroup(task for sublist in temp for task in sublist)
 
+	def select(self,name,words):
 		name = name.lower()
-		if name in daterange:
-			temp = [ self.group(current).select(words).task_list() \
-				for current in self.__position.keys() if current not in Task.sg \
-				and name in daterange and daterange[name]( self.__date.date, Date.deconvert(current) ) ]
-			return TaskGroup(task for sublist in temp for task in sublist)
+
+		if name in relative:
+			return self.__select(words, lambda current: \
+				relative[name]( self.__date.date, Date.deconvert(current) ) )
+
+		for key in absolute:
+			if absolute[key].regexp.match(name):
+				return self.__select(words, lambda current: \
+					absolute[key]( name, Date.deconvert(current) ) )
 
 		if name=="incomplete":
 			temp = [ self.group(current).select(words).task_list() \
