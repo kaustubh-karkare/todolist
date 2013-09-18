@@ -1,10 +1,11 @@
 ## Command Line To-Do-List Manager
 
-### Usage
+### Installation
 
 ```bash
-alias todo='/home/cat/todolist.py'
-todo --help
+wget https://raw.github.com/kaustubh-karkare/todolist/master/todolist.py
+alias todo='${PWD}/todolist.py'
+todo --help # display usage documentation and examples
 ```
 
 ### Development
