@@ -129,18 +129,18 @@ def __main():
 			__relocate(taskfile,task,group.name)
 
 		elif action=="done":
-			task.tag_remove("failed")
-			task.tag_add("done")
+			task.tag_remove("failed",args.date)
+			task.tag_add("done",args.date)
 			taskfile.update(task.group)
 
 		elif action=="failed":
-			task.tag_remove("done")
-			task.tag_add("failed")
+			task.tag_remove("done",args.date)
+			task.tag_add("failed",args.date)
 			taskfile.update(task.group)
 
 		elif action=="pending":
-			task.tag_remove("done")
-			task.tag_remove("failed")
+			task.tag_remove("done",args.date)
+			task.tag_remove("failed",args.date)
 
 		else: raise Exception("Unknown Action")
 

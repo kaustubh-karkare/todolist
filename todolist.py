@@ -121,10 +121,19 @@ def exports():
 			temp = len(self.__tags)
 			if "essential" in self.__tags or any(tag in periodic for tag in self.__tags):
 				self.__tags = [i for i in self.__tags if not i.startswith("deadline=")]
-			if len(self.__tags)<temp:
-				temp = [i for i in self.__raw.split() \
-					if not istag(i) or i[prefixlen:] in self.__tags]
-				self.__raw = " ".join(temp)
+			temp = []
+			for tag in self.__raw.split():
+				if not istag(tag): temp.append(tag)
+				elif tag[prefixlen:] in self.__tags:
+					if tag[prefixlen:].startswith("deadline="):
+						x = date.translate(tag[prefixlen+9:])
+						self.__tags.remove(tag[prefixlen:])
+						if x:
+							x = tag[:prefixlen+9]+x
+							temp.append(x)
+							self.__tags.append(x[prefixlen:])
+					else: temp.append(tag)
+			self.__raw = " ".join(temp)
 		def __eq__(self,other): return isinstance(other,self.__class__) and self.__raw==other.__raw
 		def __ne__(self,other): return not self.__eq__(other)
 		def __hash__(self): return self.__raw.__hash__()
@@ -142,18 +151,18 @@ def exports():
 			stat = self.status(date).title()
 			return [self.group.name if self.group else "", text, tags, freq, dead, stat]
 		sg = "periodic".split() # special group names
-		def tag_add(self,tag):
+		def tag_add(self,tag,date):
 			if istagstr(tag) and tag not in self.__tags:
-				self.update( " ".join(self.__raw.split()+[prefix+tag]) )
+				self.update( " ".join(self.__raw.split()+[prefix+tag]), date )
 				return True
 			return False
 		def tag_check(self,tag):
 			return tag in self.__tags
-		def tag_remove(self,tag):
+		def tag_remove(self,tag,date):
 			if istagstr(tag) and tag in self.__tags:
 				tag = prefix + tag # eliminates recomputation
 				temp = [i for i in self.__raw.split() if i!=tag]
-				self.update( " ".join(temp) )
+				self.update( " ".join(temp), date )
 				return True
 			return False
 		def status(self,date):
@@ -462,16 +471,16 @@ def exports():
 					break
 				__relocate(taskfile,task,group.name)
 			elif action=="done":
-				task.tag_remove("failed")
-				task.tag_add("done")
+				task.tag_remove("failed",args.date)
+				task.tag_add("done",args.date)
 				taskfile.update(task.group)
 			elif action=="failed":
-				task.tag_remove("done")
-				task.tag_add("failed")
+				task.tag_remove("done",args.date)
+				task.tag_add("failed",args.date)
 				taskfile.update(task.group)
 			elif action=="pending":
-				task.tag_remove("done")
-				task.tag_remove("failed")
+				task.tag_remove("done",args.date)
+				task.tag_remove("failed",args.date)
 			else: raise Exception("Unknown Action")
 			if action!="delete":
 				print TaskGroup([task]).tabulate(date=args.date)
