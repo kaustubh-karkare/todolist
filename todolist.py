@@ -404,7 +404,7 @@ def exports():
 			The properly formatted text-file to be used as the data-source.
 	\n\
 	Operation & TaskGroup Options
-		Operations = list | add | done | failed | edit | move | delete
+		Operations = list | add | do | fail | edit | move | delete
 		TaskGroup = Either a specific date in the format YYYY-MM-DD, or
 			today | tomorrow | thisweek | yesterday | lastweek | nextweek |
 			thismonth | lastmonth | nextmonth | YYYY-MM | YYYY | forever |
@@ -474,7 +474,7 @@ def exports():
 	exports = {}
 	__dir__ = os.path.join(*os.path.split(__file__)[:-1]) \
 		if os.path.basename(__file__)!=__file__ else "."
-	operations = "list add edit delete move done failed help".split()
+	operations = "list add edit delete move do fail help".split()
 	ap = argparse.ArgumentParser(description="A Command Line ToDoList Manager", add_help=False)
 	ap.add_argument("data", nargs="*", default=[])
 	ap.add_argument("-h","--help", action="store_true", default=False)
@@ -561,7 +561,7 @@ def exports():
 						except ValueError, IndexError: continue
 						break
 				del tasks
-			if operation not in ("list", "done", "failed"):
+			if operation not in ("list", "do", "fail"):
 				print TaskGroup([task]).tabulate()
 			if operation=="list":
 				print group.tabulate()
@@ -581,12 +581,12 @@ def exports():
 					except: continue
 					break
 				__relocate(taskfile,task,group.name)
-			elif operation=="done":
+			elif operation=="do":
 				task.tag_remove("failed")
 				task.tag_remove("impossible")
 				task.tag_add("done")
 				taskfile.update(task.group)
-			elif operation=="failed":
+			elif operation=="fail":
 				task.tag_add("failed")
 				task.tag_remove("impossible")
 				task.tag_remove("done")

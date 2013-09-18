@@ -25,7 +25,7 @@ Optional Arguments
 		The properly formatted text-file to be used as the data-source.
 \n\
 Operation & TaskGroup Options
-	Operations = list | add | done | failed | edit | move | delete
+	Operations = list | add | do | fail | edit | move | delete
 	TaskGroup = Either a specific date in the format YYYY-MM-DD, or
 		today | tomorrow | thisweek | yesterday | lastweek | nextweek |
 		thismonth | lastmonth | nextmonth | YYYY-MM | YYYY | forever |
