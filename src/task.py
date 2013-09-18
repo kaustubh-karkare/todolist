@@ -28,7 +28,7 @@ class Task:
 
 	def update(self,raw):
 		self.__raw = []
-		self.__tags = []
+		self.__tags = {}
 
 		for word in raw.split():
 			if not istag(word):
@@ -43,21 +43,20 @@ class Task:
 					name = tag[:index]
 					value = tag[index:]
 				start = prefix+name+(value or "")
-				if any(word.startswith(start) for word in self.__raw if istag(word)):
+				if name in self.__tags:
 					continue
 				elif name=="deadline":
 					if value=="none":
-						self.__raw.append(prefix+tag)
-						self.__tags.append(tag)
+						self.__raw.append(prefix+name+"=")
+						self.__tags[name] = value
 						continue
-					date = self.__date.translate(value)
-					if date:
-						date = prefix+"deadline="+date
-						self.__raw.append(prefix+date)
-						self.__tags.append(date)
+					value = self.__date.translate(value)
+					if value:
+						self.__raw.append(prefix+name+"="+value)
+						self.__tags[name] = value
 				else:
-					self.__raw.append(prefix+tag)
-					self.__tags.append(tag)
+					self.__raw.append(prefix+name)
+					self.__tags[name] = value
 
 		self.__raw = " ".join(self.__raw)
 
@@ -78,11 +77,10 @@ class Task:
 		groupname = self.group.name if self.group else ""
 		text = " ".join(word for word in self.__raw.split() if not istag(word))
 		tags = ", ".join(tag for tag in self.__tags if tag not in status and \
-			tag not in periodic and not tag.startswith("deadline="))
+			tag not in periodic and tag!="deadline")
 		freq = ", ".join([tag for tag in self.__tags if tag in periodic])
-		deadline = next(("No Limit" if tag[9:]=="none" else tag[9:] \
-			for tag in self.__tags if tag.startswith("deadline=")),"")
-		# if not deadline and groupname not in self.sg: deadline = "(same-day)"
+		deadline = "deadline" in self.__tags and self.__tags["deadline"]
+		deadline = "No Limit" if deadline=="none" else (deadline or "")
 		stat = self.status().title()
 		return [groupname, text, tags, freq, deadline, stat]
 
@@ -108,7 +106,7 @@ class Task:
 	def status(self):
 		result = next((tag for tag in self.__tags if tag in status),None)
 		if result: return result
-		deadline = next((tag[9:] for tag in self.__tags if tag.startswith("deadline=")),None)
+		deadline = "deadline" in self.__tags and self.__tags["deadline"]
 		if deadline: deadline = deadline!="none" and Date.deconvert(deadline)
 		else: deadline = self.group and Date.regexp.match(self.group.name) and Date.deconvert(self.group.name)
 		if not deadline or self.__date.date<=deadline: return "pending"
@@ -116,10 +114,10 @@ class Task:
 
 	def carryover(self):
 		if any(i in status for i in self.__tags): return
-		for tag in self.__tags:
-			if tag.startswith("deadline=") and ( tag[9:]=="none" or \
-				Date.regexp.match(tag[9:]) and self.__date.date<Date.deconvert(tag[9:]) ):
-				return True
+		deadline = "deadline" in self.__tags and self.__tags["deadline"]
+		if Date.regexp.match(deadline) and self.__date.date<Date.deconvert(deadline) \
+			or deadline=="none":
+			return True
 
 	def periodic(self,group):
 		if not self.group or self.group.name!="periodic": return

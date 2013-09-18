@@ -40,6 +40,7 @@ Tags (special and otherwise)
 		Tasks can include tags, which are basically string without whitespace,
 		and prefixed with the plus (+) symbol. While you may create your own
 		tags, certain tags have special meanings as explained below.
+		Note that tags cannot be repeated.
 	Status Tags
 		These tags are used to indicate the current status of a task:
 		+done | +failed | +impossible (lack of a status tag => +pending)
