@@ -2,7 +2,7 @@
 require task, prettytable
 
 class TaskGroup:
-	def __init__(self,tasks=[],name=""):
+	def __init__(self,tasks,name=""):
 		self.name = name
 		self.__tasks = []
 		for task in tasks:
@@ -24,9 +24,9 @@ class TaskGroup:
 		if isinstance(task,Task) and task in self.__tasks:
 			self.__tasks.remove(task)
 
-	def tabulate(self, date, heading=None, index=False):
+	def tabulate(self, index=False, heading=None):
 		data = [Task.table_heading]
-		data.extend( task.table_fields(date) for task in self.task_list() )
+		data.extend( task.table_fields() for task in self.task_list() )
 		if index:
 			for i,row in enumerate(data):
 				data[i] = ["Index" if i==0 else str(i-1)]+data[i]

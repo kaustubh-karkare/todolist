@@ -68,6 +68,9 @@ def __main():
 			raise Exception("Empty Task")
 		group = taskfile.group(args.data[0])
 		line = " ".join(args.data[1:])
+		if not group:
+			group = taskfile.group("today")
+			line = args.data[0]+" "+line
 	else:
 		if len(args.data)==0:
 			group = taskfile.group("today")
@@ -82,7 +85,7 @@ def __main():
 			elif len(tasks)==1:
 				task = tasks[0]
 			else:
-				print group.tabulate(date=args.date, index=True)
+				print group.tabulate(True)
 				while True:
 					index = prompt("Select Task by Index: ")
 					try: task = tasks[int(index)]
@@ -92,7 +95,7 @@ def __main():
 
 	if operation=="list":
 
-		print group.tabulate(date=args.date)
+		print group.tabulate()
 
 	elif operation=="add":
 
@@ -100,10 +103,11 @@ def __main():
 		
 		task = Task(line,group,args.date)
 		group.task_add(task)
-		print group.tabulate(date=args.date)
+		taskfile.update(group)
+		print group.tabulate()
 
 		today = taskfile.group("today")
-		task = task.periodic(args.date)
+		task = task.periodic(today)
 		if task:
 			today.task_add(temp)
 			taskfile.update(today)
@@ -111,13 +115,13 @@ def __main():
 	else:
 
 		if operation in ("edit","delete","move"):
-			print TaskGroup([task]).tabulate(date=args.date)
+			print TaskGroup([task]).tabulate()
 
 		if operation=="edit":
 			while True:
 				line = prompt("Edit Task: ",str(task))
 				if line!="": break
-			task.update(line,args.date)
+			task.update(line)
 			taskfile.update(task.group)
 
 		elif operation=="delete":
@@ -133,23 +137,23 @@ def __main():
 			__relocate(taskfile,task,group.name)
 
 		elif operation=="done":
-			task.tag_remove("failed",args.date)
-			task.tag_add("done",args.date)
+			task.tag_remove("failed")
+			task.tag_add("done")
 			taskfile.update(task.group)
 
 		elif operation=="failed":
-			task.tag_remove("done",args.date)
-			task.tag_add("failed",args.date)
+			task.tag_remove("done")
+			task.tag_add("failed")
 			taskfile.update(task.group)
 
 		elif operation=="pending":
-			task.tag_remove("done",args.date)
-			task.tag_remove("failed",args.date)
+			task.tag_remove("done")
+			task.tag_remove("failed")
 
 		else: raise Exception("Unknown Action")
 
 		if operation!="delete":
-			print TaskGroup([task]).tabulate(date=args.date)
+			print TaskGroup([task]).tabulate()
 	
 	if args.nosave:
 		pass
@@ -169,4 +173,4 @@ def main():
 	except Exception as e:
 		print "Error:", e.message, "\n"
 
-exports["main"] = __main
+exports["main"] = main
