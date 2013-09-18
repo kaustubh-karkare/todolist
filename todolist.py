@@ -366,7 +366,7 @@ define(exports())
 def exports():
 	exports = {}
 	text = ["""\
-	A Command Line ToDoList Manager
+	Command Line To-Do-List Manager
 	\n\
 	Usage: ./"""+os.path.basename(sys.argv[0])+""" [-h] [-H] [-f <filepath>] [data ...]
 	""", """\
@@ -415,14 +415,14 @@ def exports():
 			in the special "periodic" group.
 	\n\
 	Usage Examples (not comprehensive)
-		$ todo add Catch the damn mouse.
+		$ todo add Catch the damn mouse. \#essential
 		$ todo list today
 		$ todo edit mouse # append " #food"
 		$ todo list food
-		$ todo done food
-		$ todo add 2013-09-15 Make plans for World Domination. \#essential
-		$ todo list future
-		$ todo add periodic Stare creepily at human slave. \#everyday
+		$ todo done catch
+		$ todo add 2013-09-15 Make plans for World Domination.
+		$ todo list 2013-09
+		$ todo add periodic Stare creepily at human. \#thursday
 	\n\
 	File (data-source)
 		The format of file being used as the data-source has kept extremely simple
@@ -485,7 +485,10 @@ def exports():
 		return True
 	def __main():
 		print
-		args = ap.parse_args(sys.argv[1:])
+		args, unknown = ap.parse_known_args()
+		if len(unknown)>0:
+			print help.basic
+			sys.exit(0)
 		if args.help:
 			print help.full
 			sys.exit(0)

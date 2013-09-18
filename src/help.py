@@ -2,7 +2,7 @@
 import os, sys, textwrap
 
 text = ["""\
-A Command Line ToDoList Manager
+Command Line To-Do-List Manager
 \n\
 Usage: ./"""+os.path.basename(sys.argv[0])+""" [-h] [-H] [-f <filepath>] [data ...]
 """, """\
@@ -54,14 +54,14 @@ Tags (special and otherwise)
 		in the special "periodic" group.
 \n\
 Usage Examples (not comprehensive)
-	$ todo add Catch the damn mouse.
+	$ todo add Catch the damn mouse. \#essential
 	$ todo list today
 	$ todo edit mouse # append " #food"
 	$ todo list food
-	$ todo done food
-	$ todo add 2013-09-15 Make plans for World Domination. \#essential
+	$ todo done catch
+	$ todo add 2013-09-15 Make plans for World Domination.
 	$ todo list 2013-09
-	$ todo add periodic Stare creepily at human slave. \#everyday
+	$ todo add periodic Stare creepily at human. \#thursday
 \n\
 File (data-source)
 	The format of file being used as the data-source has kept extremely simple

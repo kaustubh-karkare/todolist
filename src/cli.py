@@ -50,7 +50,11 @@ def __main():
 
 	print
 
-	args = ap.parse_args(sys.argv[1:])
+	args, unknown = ap.parse_known_args()
+
+	if len(unknown)>0:
+		print help.basic
+		sys.exit(0)
 
 	if args.help:
 		print help.full
