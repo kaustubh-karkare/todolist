@@ -509,13 +509,26 @@ def exports():
 			args.data.pop(0)
 		else: operation = "list"
 		if operation=="add":
-			if len(args.data)==0:
-				raise Exception("Empty Task")
-			group = taskfile.group(args.data[0])
-			line = " ".join(args.data[1:])
-			if not group:
-				group = taskfile.group("today")
-				line = args.data[0]+" "+line
+			if len(args.data)>0:
+				group = taskfile.group(args.data[0])
+				if group: args.data.pop(0)
+				else: group = taskfile.group("today")
+			else: group = taskfile.group("today")
+			if len(args.data)>0:
+				line = " ".join(args.data)
+			else:
+				while True:
+					line = prompt("Add Task: ")
+					if line.strip()!="": break
+			task = Task(line,group,args.date)
+			group.task_add(task)
+			taskfile.update(group)
+			print group.tabulate()
+			today = taskfile.group("today")
+			task = task.periodic(today)
+			if task:
+				today.task_add(temp)
+				taskfile.update(today)
 		else:
 			if len(args.data)==0:
 				group = taskfile.group("today")
@@ -537,23 +550,11 @@ def exports():
 						except ValueError, IndexError: continue
 						break
 				del tasks
-		if operation=="list":
-			print group.tabulate()
-		elif operation=="add":
-			if line=="": raise Exception("Empty Task")
-			task = Task(line,group,args.date)
-			group.task_add(task)
-			taskfile.update(group)
-			print group.tabulate()
-			today = taskfile.group("today")
-			task = task.periodic(today)
-			if task:
-				today.task_add(temp)
-				taskfile.update(today)
-		else:
-			if operation in ("edit","delete","move"):
+			if operation not in ("list", "done", "failed"):
 				print TaskGroup([task]).tabulate()
-			if operation=="edit":
+			if operation=="list":
+				print group.tabulate()
+			elif operation=="edit":
 				while True:
 					line = prompt("Edit Task: ",str(task))
 					if line!="": break
@@ -579,8 +580,7 @@ def exports():
 				task.tag_remove("impossible")
 				task.tag_remove("done")
 				taskfile.update(task.group)
-			else: raise Exception("Unknown Action")
-			if operation!="delete":
+			if operation not in ("list","delete"):
 				print TaskGroup([task]).tabulate()
 		if args.nosave:
 			pass
