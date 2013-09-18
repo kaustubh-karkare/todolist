@@ -464,13 +464,12 @@ def exports():
 	__dir__ = os.path.join(*os.path.split(__file__)[:-1]) \
 		if os.path.basename(__file__)!=__file__ else "."
 	operations = "list add edit delete move done failed".split()
-	def date(x): return Date("today") # development only
 	ap = argparse.ArgumentParser(description="A Command Line ToDoList Manager", add_help=False)
 	ap.add_argument("data", nargs="*", default=[])
 	ap.add_argument("-h","--help", action="store_true", default=False)
 	ap.add_argument("-f","--file", default="./todolist.txt")
 	ap.add_argument("-n","--nosave", action="store_true", default=False)
-	ap.add_argument("-d","--date", type=date, default="today")
+	ap.add_argument("-d","--date", type=Date, default="today")
 	def confirm(msg="Are you sure?"):
 		while True:
 			x = raw_input(msg+" (yes/no) ")
@@ -503,6 +502,7 @@ def exports():
 		if args.help:
 			print help.full
 			sys.exit(0)
+		realdate = args.date.date==datetime.date.today()
 		taskfile = TaskFile(args.file,args.date)
 		if len(args.data) and args.data[0] in operations:
 			operation = args.data[0]
@@ -582,7 +582,7 @@ def exports():
 				taskfile.update(task.group)
 			if operation not in ("list","delete"):
 				print TaskGroup([task]).tabulate()
-		if args.nosave:
+		if args.nosave or not realdate:
 			pass
 		elif operation=="list":
 			taskfile.save()
