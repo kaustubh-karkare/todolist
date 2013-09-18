@@ -27,27 +27,39 @@ class Task:
 		self.update(raw)
 
 	def update(self,raw):
-		self.__raw = raw
-		self.__tags = [tag.lower()[prefixlen:] for tag in self.__raw.split() if istag(tag)]
+		self.__raw = []
+		self.__tags = []
 
-		temp = []
-		i = prefixlen+9 # len(prefix+"deadline=")
-		for tag in self.__raw.split():
-			if not istag(tag): temp.append(tag)
-			elif tag[prefixlen:] in self.__tags:
-				if tag[prefixlen:].startswith("deadline="):
-					date = tag[i:]
-					if date=="none":
-						temp.append(tag)
+		for word in raw.split():
+			if not istag(word):
+				self.__raw.append(word)
+			else:
+				tag = word.lower()[prefixlen:]
+				index = tag.find("=")
+				if index==-1:
+					name = tag
+					value = None
+				else:
+					name = tag[:index]
+					value = tag[index:]
+				start = prefix+name+(value or "")
+				if any(word.startswith(start) for word in self.__raw if istag(word)):
+					continue
+				elif name=="deadline":
+					if value=="none":
+						self.__raw.append(prefix+tag)
+						self.__tags.append(tag)
 						continue
-					date = self.__date.translate(date)
-					self.__tags.remove(tag[prefixlen:])
+					date = self.__date.translate(value)
 					if date:
-						date = tag[:i]+date
-						temp.append(date)
-						self.__tags.append(date[prefixlen:])
-				else: temp.append(tag)
-		self.__raw = " ".join(temp)
+						date = prefix+"deadline="+date
+						self.__raw.append(prefix+date)
+						self.__tags.append(date)
+				else:
+					self.__raw.append(prefix+tag)
+					self.__tags.append(tag)
+
+		self.__raw = " ".join(self.__raw)
 
 	def __eq__(self,other): return isinstance(other,self.__class__) and self.__raw==other.__raw
 	def __ne__(self,other): return not self.__eq__(other)
