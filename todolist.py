@@ -37,6 +37,8 @@ def exports():
 		regexp = re.compile("\d{4}-\d{2}-\d{2}")
 		oneday = datetime.timedelta(1)
 		def __init__(self,today=None):
+			self.update(today)
+		def update(self,today):
 			self.date = datetime.date.today()
 			self.__relative = {}
 			if today is None:
@@ -85,6 +87,7 @@ def exports():
 	status = "failed impossible done".split()
 	prefix = "+"
 	prefixlen = len(prefix)
+	tagequal = "="
 	def istagstr(str): return len(str)>0 and len(str.split())==1
 	def istag(tag): return tag.startswith(prefix) and istagstr(tag[prefixlen:])
 	class Task:
@@ -100,27 +103,27 @@ def exports():
 					self.__raw.append(word)
 				else:
 					tag = word.lower()[prefixlen:]
-					index = tag.find("=")
+					index = tag.find(tagequal)
 					if index==-1:
 						name = tag
 						value = None
 					else:
 						name = tag[:index]
-						value = tag[index:]
+						value = tag[index+1:]
 					start = prefix+name+(value or "")
 					if name in self.__tags:
 						continue
-					elif name=="deadline":
+					elif name=="deadline" or name=="birthday":
 						if value=="none":
-							self.__raw.append(prefix+name+"=")
+							self.__raw.append(prefix+name+tagequal+value)
 							self.__tags[name] = value
 							continue
 						value = self.__date.translate(value)
 						if value:
-							self.__raw.append(prefix+name+"="+value)
+							self.__raw.append(prefix+name+tagequal+value)
 							self.__tags[name] = value
 					else:
-						self.__raw.append(prefix+name)
+						self.__raw.append(prefix+name+(tagequal+value if value else ""))
 						self.__tags[name] = value
 			self.__raw = " ".join(self.__raw)
 		def __eq__(self,other): return isinstance(other,self.__class__) and self.__raw==other.__raw
@@ -136,14 +139,15 @@ def exports():
 		def table_fields(self):
 			groupname = self.group.name if self.group else ""
 			text = " ".join(word for word in self.__raw.split() if not istag(word))
-			tags = ", ".join(tag for tag in self.__tags if tag not in status and \
-				tag not in periodic and tag!="deadline")
+			tags = ", ".join(tag+":"+self.__tags[tag] if self.__tags[tag] else tag \
+				for tag in self.__tags \
+				if tag not in status and tag not in periodic and tag!="deadline")
 			freq = ", ".join([tag for tag in self.__tags if tag in periodic])
 			deadline = "deadline" in self.__tags and self.__tags["deadline"]
 			deadline = "No Limit" if deadline=="none" else (deadline or "")
 			stat = self.status().title()
 			return [groupname, text, tags, freq, deadline, stat]
-		sg = "periodic".split() # special group names
+		sg = "periodic birthdays".split() # special group names
 		def tag_add(self,tag):
 			if istagstr(tag) and tag not in self.__tags:
 				self.update( " ".join(self.__raw.split()+[prefix+tag]) )
@@ -169,16 +173,35 @@ def exports():
 		def carryover(self):
 			if any(i in status for i in self.__tags): return
 			deadline = "deadline" in self.__tags and self.__tags["deadline"]
-			if Date.regexp.match(deadline) and self.__date.date<Date.deconvert(deadline) \
-				or deadline=="none":
+			if deadline and Date.regexp.match(deadline) \
+				and self.__date.date<Date.deconvert(deadline) or deadline=="none":
 				return True
+		def __nostatus(self,tags={}):
+			temp = []
+			for word in self.__raw.split():
+				if not istag(word): temp.append(word)
+				else:
+					index = word.find(tagequal)
+					if index==-1: tag = word[prefixlen:]
+					else: tag = word[prefixlen:index]
+					if tag in status: pass
+					elif tag in tags and index!=-1:
+						temp.append(prefix+tag+tagequal+tags[tag])
+					else: temp.append(word)
+			for tag in tags:
+				if tag not in self.__tags:
+					temp.append(prefix+tag+(tagequal+tags[tag] if tags[tag] else ""))
+			return " ".join(temp)
 		def periodic(self,group):
 			if not self.group or self.group.name!="periodic": return
 			tags = filter(lambda tag: tag in periodic, self.__tags)
 			if not any(periodic[name](self.__date.date) for name in tags): return
-			temp = [tag for tag in self.__raw.split() \
-				if not istag(tag) or tag[prefixlen:] not in status]
-			return self.__class__( " ".join(temp), group, self.__date )
+			return self.__class__( self.__nostatus(), group, self.__date )
+		def birthday(self,group):
+			if "birthday" not in self.__tags: return
+			d1, d2 = self.__date.date, Date.deconvert(self.__tags["birthday"])
+			if (d1.month, d1.day)!=(d2.month, d2.day): return
+			return self.__class__( self.__nostatus({"deadline":"none"}), group, self.__date )
 	exports["Task"] = Task
 	return exports
 define(exports())
@@ -286,8 +309,11 @@ def exports():
 				else: error("Unexpected Pattern")
 			self.__process()
 		def __process(self):
-			if self.__lastrun.date==self.__date.date: return
-			group = self.group(self.__lastrun.str())
+			if self.__lastrun.date>=self.__date.date: return
+			today = self.__date
+			self.__date = self.__lastrun
+			del self.__lastrun
+			group = self.group(self.__date.str())
 			carry = []
 			for task in group.task_list():
 				temp = task.carryover()
@@ -295,22 +321,25 @@ def exports():
 				carry.append(task)
 				group.task_remove(task)
 			self.update(group)
-			while self.__lastrun.date < self.__date.date:
-				self.__lastrun = Date(self.__lastrun.date+Date.oneday)
-				group = self.group(self.__lastrun.str())
+			while self.__date.date < today.date:
+				self.__date.update(self.__date.date+Date.oneday)
+				group = self.group(self.__date.str())
 				for task in carry:
 					group.task_add(task)
 					task.group = group
 				carry = []
-				if self.__lastrun.date < self.__date.date:
+				for task in self.group("periodic").task_list():
+					temp = task.periodic(group)
+					if temp: group.task_add(temp)
+				for task in self.group("birthdays").task_list():
+					temp = task.birthday(group)
+					if temp: group.task_add(temp)
+				if self.__date.date < today.date:
 					for task in group.task_list():
 						temp = task.carryover()
 						if not temp: continue
 						group.task_remove(task)
 						carry.append(task)
-				for task in self.group("periodic").task_list():
-					temp = task.periodic(group)
-					if temp: group.task_add(temp)
 				self.update(group)
 		def __serialize(self,taskgroup):
 			return "".join("\t"+task.raw()+"\n" for task in taskgroup.task_list(True))
@@ -408,7 +437,7 @@ def exports():
 		TaskGroup = Either a specific date in the format YYYY-MM-DD, or
 			today | tomorrow | thisweek | yesterday | lastweek | nextweek |
 			thismonth | lastmonth | nextmonth | YYYY-MM | YYYY | forever |
-			future | past | periodic
+			future | past | periodic | birthdays
 		Note: You will need to specify an exact date (and not a range) while
 			adding new tasks. By default, tasks are added to the group
 			corresponding to the current date.
@@ -429,11 +458,14 @@ def exports():
 			a specific date, with the exception of the string "none", which just
 			means that there is no stop-date for the carry-forwards.
 		Periodic Tasks
-			Tasks in the "periodic" taskgroup are automatically added to the group
-			corresponding to the current date based on the following special tags:
+			Tasks in the "periodic" taskgroup (and no other) are automatically and
+			appropriately added to the group corresponding to the current date
+			according to the following special tags:
 			+everyday | +weekday | +weekend | +monday | +tuesday | ... | +sunday
-			Note that Periodic Tags have a special meaning only if the containing
-			task in the special "periodic" group.
+		Birthdays
+			Tasks in the "birthdays" taskgroup (and no other) and with the
+			+birthday=yyyy-mm-dd tag are automatically added to the taskgroup
+			corresponding to the current date appropriately.
 	\n\
 	Usage Examples (not comprehensive)
 		$ alias todo='"""+__file__+"""'

@@ -13,6 +13,7 @@ status = "failed impossible done".split()
 
 prefix = "+"
 prefixlen = len(prefix)
+tagequal = "="
 
 def istagstr(str): return len(str)>0 and len(str.split())==1
 def istag(tag): return tag.startswith(prefix) and istagstr(tag[prefixlen:])
@@ -35,27 +36,27 @@ class Task:
 				self.__raw.append(word)
 			else:
 				tag = word.lower()[prefixlen:]
-				index = tag.find("=")
+				index = tag.find(tagequal)
 				if index==-1:
 					name = tag
 					value = None
 				else:
 					name = tag[:index]
-					value = tag[index:]
+					value = tag[index+1:]
 				start = prefix+name+(value or "")
 				if name in self.__tags:
 					continue
-				elif name=="deadline":
+				elif name=="deadline" or name=="birthday":
 					if value=="none":
-						self.__raw.append(prefix+name+"=")
+						self.__raw.append(prefix+name+tagequal+value)
 						self.__tags[name] = value
 						continue
 					value = self.__date.translate(value)
 					if value:
-						self.__raw.append(prefix+name+"="+value)
+						self.__raw.append(prefix+name+tagequal+value)
 						self.__tags[name] = value
 				else:
-					self.__raw.append(prefix+name)
+					self.__raw.append(prefix+name+(tagequal+value if value else ""))
 					self.__tags[name] = value
 
 		self.__raw = " ".join(self.__raw)
@@ -76,15 +77,16 @@ class Task:
 	def table_fields(self):
 		groupname = self.group.name if self.group else ""
 		text = " ".join(word for word in self.__raw.split() if not istag(word))
-		tags = ", ".join(tag for tag in self.__tags if tag not in status and \
-			tag not in periodic and tag!="deadline")
+		tags = ", ".join(tag+":"+self.__tags[tag] if self.__tags[tag] else tag \
+			for tag in self.__tags \
+			if tag not in status and tag not in periodic and tag!="deadline")
 		freq = ", ".join([tag for tag in self.__tags if tag in periodic])
 		deadline = "deadline" in self.__tags and self.__tags["deadline"]
 		deadline = "No Limit" if deadline=="none" else (deadline or "")
 		stat = self.status().title()
 		return [groupname, text, tags, freq, deadline, stat]
 
-	sg = "periodic".split() # special group names
+	sg = "periodic birthdays".split() # special group names
 
 	def tag_add(self,tag):
 		if istagstr(tag) and tag not in self.__tags:
@@ -115,16 +117,37 @@ class Task:
 	def carryover(self):
 		if any(i in status for i in self.__tags): return
 		deadline = "deadline" in self.__tags and self.__tags["deadline"]
-		if Date.regexp.match(deadline) and self.__date.date<Date.deconvert(deadline) \
-			or deadline=="none":
+		if deadline and Date.regexp.match(deadline) \
+			and self.__date.date<Date.deconvert(deadline) or deadline=="none":
 			return True
+
+	def __nostatus(self,tags={}):
+		temp = []
+		for word in self.__raw.split():
+			if not istag(word): temp.append(word)
+			else:
+				index = word.find(tagequal)
+				if index==-1: tag = word[prefixlen:]
+				else: tag = word[prefixlen:index]
+				if tag in status: pass
+				elif tag in tags and index!=-1:
+					temp.append(prefix+tag+tagequal+tags[tag])
+				else: temp.append(word)
+		for tag in tags:
+			if tag not in self.__tags:
+				temp.append(prefix+tag+(tagequal+tags[tag] if tags[tag] else ""))
+		return " ".join(temp)
 
 	def periodic(self,group):
 		if not self.group or self.group.name!="periodic": return
 		tags = filter(lambda tag: tag in periodic, self.__tags)
 		if not any(periodic[name](self.__date.date) for name in tags): return
-		temp = [tag for tag in self.__raw.split() \
-			if not istag(tag) or tag[prefixlen:] not in status]
-		return self.__class__( " ".join(temp), group, self.__date )
+		return self.__class__( self.__nostatus(), group, self.__date )
+
+	def birthday(self,group):
+		if "birthday" not in self.__tags: return
+		d1, d2 = self.__date.date, Date.deconvert(self.__tags["birthday"])
+		if (d1.month, d1.day)!=(d2.month, d2.day): return
+		return self.__class__( self.__nostatus({"deadline":"none"}), group, self.__date )
 
 exports["Task"] = Task

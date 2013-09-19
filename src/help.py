@@ -29,7 +29,7 @@ Operation & TaskGroup Options
 	TaskGroup = Either a specific date in the format YYYY-MM-DD, or
 		today | tomorrow | thisweek | yesterday | lastweek | nextweek |
 		thismonth | lastmonth | nextmonth | YYYY-MM | YYYY | forever |
-		future | past | periodic
+		future | past | periodic | birthdays
 	Note: You will need to specify an exact date (and not a range) while
 		adding new tasks. By default, tasks are added to the group
 		corresponding to the current date.
@@ -50,11 +50,14 @@ Tags (special and otherwise)
 		a specific date, with the exception of the string "none", which just
 		means that there is no stop-date for the carry-forwards.
 	Periodic Tasks
-		Tasks in the "periodic" taskgroup are automatically added to the group
-		corresponding to the current date based on the following special tags:
+		Tasks in the "periodic" taskgroup (and no other) are automatically and
+		appropriately added to the group corresponding to the current date
+		according to the following special tags:
 		+everyday | +weekday | +weekend | +monday | +tuesday | ... | +sunday
-		Note that Periodic Tags have a special meaning only if the containing
-		task in the special "periodic" group.
+	Birthdays
+		Tasks in the "birthdays" taskgroup (and no other) and with the
+		+birthday=yyyy-mm-dd tag are automatically added to the taskgroup
+		corresponding to the current date appropriately.
 \n\
 Usage Examples (not comprehensive)
 	$ alias todo='"""+__file__+"""'

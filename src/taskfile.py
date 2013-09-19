@@ -75,10 +75,14 @@ class TaskFile:
 
 	def __process(self):
 
-		if self.__lastrun.date==self.__date.date: return
+		if self.__lastrun.date>=self.__date.date: return
+
+		today = self.__date
+		self.__date = self.__lastrun
+		del self.__lastrun
 
 		# get list of incomplete tasks with deadlines
-		group = self.group(self.__lastrun.str())
+		group = self.group(self.__date.str())
 		carry = []
 		for task in group.task_list():
 			temp = task.carryover()
@@ -87,28 +91,32 @@ class TaskFile:
 			group.task_remove(task)
 		self.update(group)
 
-		while self.__lastrun.date < self.__date.date:
+		while self.__date.date < today.date:
 
 			# get the current group and add carried over tasks
-			self.__lastrun = Date(self.__lastrun.date+Date.oneday)
-			group = self.group(self.__lastrun.str())
+			self.__date.update(self.__date.date+Date.oneday)
+			group = self.group(self.__date.str())
 			for task in carry:
 				group.task_add(task)
 				task.group = group
 			carry = []
 
+			# for all periodic groups, add if applicable
+			for task in self.group("periodic").task_list():
+				temp = task.periodic(group)
+				if temp: group.task_add(temp)
+
+			for task in self.group("birthdays").task_list():
+				temp = task.birthday(group)
+				if temp: group.task_add(temp)
+
 			# for all iterations except the last, calculate carry
-			if self.__lastrun.date < self.__date.date:
+			if self.__date.date < today.date:
 				for task in group.task_list():
 					temp = task.carryover()
 					if not temp: continue
 					group.task_remove(task)
 					carry.append(task)
-
-			# for all periodic groups, add if applicable
-			for task in self.group("periodic").task_list():
-				temp = task.periodic(group)
-				if temp: group.task_add(temp)
 
 			self.update(group)
 

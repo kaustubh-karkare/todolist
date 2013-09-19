@@ -13,7 +13,9 @@ class Date:
 	oneday = datetime.timedelta(1)
 
 	def __init__(self,today=None):
+		self.update(today)
 
+	def update(self,today):
 		self.date = datetime.date.today()
 		self.__relative = {}
 
