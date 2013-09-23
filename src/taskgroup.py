@@ -34,7 +34,7 @@ class TaskGroup:
 		if heading:
 			x = result.find("\n")-len(heading)
 			prefix = "="*(x/2-1)+" "+heading+" "+"="*(x-x/2-1)+"\n"
-		return prefix+result+"\n"
+		return prefix+result
 
 	def select(self,words):
 		words = [word for word in words if word!=""]
