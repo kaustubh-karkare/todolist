@@ -28,6 +28,7 @@ def exports():
 			except:
 				return None
 		return int(cr[1]), int(cr[0])
+	terminal = __get_terminal_size_linux()
 	vc, hc, jc, pd, nl = "|-+ \n"
 	def prettytable(rows):
 		if len(rows)==0: return
@@ -37,7 +38,6 @@ def exports():
 			for j, col in enumerate(row):
 				width[j] = max(width[j],len(col))
 				lword[j] = max(lword[j], max(len(word) for word in col.split(" ")) )
-		terminal = __get_terminal_size_linux()
 		if terminal:
 			x = sum([i+3 for i in width])+1 - terminal[0] # table width - console width
 			if x>0:
