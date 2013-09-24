@@ -90,7 +90,7 @@ def __main():
 		today = taskfile.group("today")
 		task = task.periodic(today)
 		if task:
-			today.task_add(temp)
+			today.task_add(task)
 			taskfile.update(today)
 
 	else:

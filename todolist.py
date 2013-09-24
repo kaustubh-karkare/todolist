@@ -43,7 +43,7 @@ def exports():
 			if x>0:
 				y = [i for i in range(len(lword)) if lword[i]<width[i]] # columns to be resized
 				z = int(math.ceil(float(x)/len(y))) # difference in width
-				for i in y: width[i] -= z
+				for i in y: width[i] = max(width[i]-z,10)
 		result = ""
 		line = (jc)+(jc).join(hc*(i+2) for i in width)+(jc)+nl
 		for i, row in enumerate(rows):
@@ -613,7 +613,7 @@ def exports():
 			today = taskfile.group("today")
 			task = task.periodic(today)
 			if task:
-				today.task_add(temp)
+				today.task_add(task)
 				taskfile.update(today)
 		else:
 			if len(args.data)==0:
