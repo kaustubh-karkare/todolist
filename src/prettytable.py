@@ -28,7 +28,7 @@ terminal = __get_terminal_size_linux()
 
 vc, hc, jc, pd, nl = "|-+ \n"
 
-def prettytable(rows):
+def prettytable(rows,header=None,footer=None):
 	if len(rows)==0: return
 
 	width = [-1]*min(len(row) for row in rows)
@@ -56,6 +56,14 @@ def prettytable(rows):
 				result+=vc+pd+"{0:<{1}}".format(ck,width[j])+pd
 			result+=vc+nl
 	result+=line
+
+	if header or footer:
+		def pad(data):
+			x = len(line)-5-len(data)
+			y = vc + pd + " "*(x/2) + data + " "*(x-x/2) + pd + vc + nl
+			return y
+		if header: result = line + pad(header) + result
+		if footer: result = result + pad(footer) + line
 
 	return result
 

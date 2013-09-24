@@ -30,7 +30,7 @@ def exports():
 		return int(cr[1]), int(cr[0])
 	terminal = __get_terminal_size_linux()
 	vc, hc, jc, pd, nl = "|-+ \n"
-	def prettytable(rows):
+	def prettytable(rows,header=None,footer=None):
 		if len(rows)==0: return
 		width = [-1]*min(len(row) for row in rows)
 		lword = [-1]*len(width) # largest word
@@ -55,6 +55,13 @@ def exports():
 					result+=vc+pd+"{0:<{1}}".format(ck,width[j])+pd
 				result+=vc+nl
 		result+=line
+		if header or footer:
+			def pad(data):
+				x = len(line)-5-len(data)
+				y = vc + pd + " "*(x/2) + data + " "*(x-x/2) + pd + vc + nl
+				return y
+			if header: result = line + pad(header) + result
+			if footer: result = result + pad(footer) + line
 		return result
 	exports["prettytable"] = prettytable
 	return exports
@@ -203,6 +210,9 @@ def exports():
 			else: deadline = self.group and Date.regexp.match(self.group.name) and Date.deconvert(self.group.name)
 			if not deadline or self.__date.date<=deadline: return "pending"
 			return "failed"
+		def report(self):
+			x = self.status()
+			return (int(x=="done"),int(x!="impossible"))
 		def carryover(self):
 			if any(i in status for i in self.__tags): return
 			deadline = "deadline" in self.__tags and self.__tags["deadline"]
@@ -258,17 +268,17 @@ def exports():
 		def task_remove(self,task):
 			if isinstance(task,Task) and task in self.__tasks:
 				self.__tasks.remove(task)
-		def tabulate(self, index=False, heading=None):
+		def tabulate(self, index=False, heading=None, performance=False):
 			data = [Task.table_heading]
 			data.extend( task.table_fields() for task in self.task_list() )
 			if index:
 				for i,row in enumerate(data):
 					data[i] = ["Index" if i==0 else str(i-1)]+data[i]
-			result, prefix = prettytable(data), ""
-			if heading:
-				x = result.find("\n")-len(heading)
-				prefix = "="*(x/2-1)+" "+heading+" "+"="*(x-x/2-1)+"\n"
-			return prefix+result
+			if performance:
+				z = (task.report() for task in self.task_list())
+				x, y = map(sum, zip(*z))
+				performance = "Performance Index = %d/%d = %.2f%%" % (x,y,100.0*x/y)
+			return prettytable(data,heading,performance)
 		def select(self,words):
 			words = [word for word in words if word!=""]
 			if len(words)==0: return self.__class__( self.__tasks )
@@ -626,10 +636,10 @@ def exports():
 						except ValueError, IndexError: continue
 						break
 				del tasks
-			if operation not in ("list", "do", "fail"):
+			if operation in ("edit","delete","move"):
 				print TaskGroup([task]).tabulate()
 			if operation=="list":
-				print group.tabulate()
+				print group.tabulate(performance=True)
 			elif operation=="edit":
 				while True:
 					line = prompt("Edit Task: ",str(task))

@@ -24,17 +24,17 @@ class TaskGroup:
 		if isinstance(task,Task) and task in self.__tasks:
 			self.__tasks.remove(task)
 
-	def tabulate(self, index=False, heading=None):
+	def tabulate(self, index=False, heading=None, performance=False):
 		data = [Task.table_heading]
 		data.extend( task.table_fields() for task in self.task_list() )
 		if index:
 			for i,row in enumerate(data):
 				data[i] = ["Index" if i==0 else str(i-1)]+data[i]
-		result, prefix = prettytable(data), ""
-		if heading:
-			x = result.find("\n")-len(heading)
-			prefix = "="*(x/2-1)+" "+heading+" "+"="*(x-x/2-1)+"\n"
-		return prefix+result
+		if performance:
+			z = (task.report() for task in self.task_list())
+			x, y = map(sum, zip(*z))
+			performance = "Performance Index = %d/%d = %.2f%%" % (x,y,100.0*x/y)
+		return prettytable(data,heading,performance)
 
 	def select(self,words):
 		words = [word for word in words if word!=""]

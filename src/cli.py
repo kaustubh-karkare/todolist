@@ -116,11 +116,11 @@ def __main():
 					break
 			del tasks
 
-		if operation not in ("list", "do", "fail"):
+		if operation in ("edit","delete","move"):
 			print TaskGroup([task]).tabulate()
 
 		if operation=="list":
-			print group.tabulate()
+			print group.tabulate(performance=True)
 
 		elif operation=="edit":
 			while True:

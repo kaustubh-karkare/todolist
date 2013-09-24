@@ -114,6 +114,10 @@ class Task:
 		if not deadline or self.__date.date<=deadline: return "pending"
 		return "failed"
 
+	def report(self):
+		x = self.status()
+		return (int(x=="done"),int(x!="impossible"))
+
 	def carryover(self):
 		if any(i in status for i in self.__tags): return
 		deadline = "deadline" in self.__tags and self.__tags["deadline"]
