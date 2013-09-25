@@ -275,9 +275,12 @@ def exports():
 				for i,row in enumerate(data):
 					data[i] = ["Index" if i==0 else str(i-1)]+data[i]
 			if performance:
-				z = (task.report() for task in self.task_list())
-				x, y = map(sum, zip(*z))
-				performance = "Performance Index = %d/%d = %.2f%%" % (x,y,100.0*x/y)
+				z = [task.report() for task in self.task_list()]
+				if len(z)==0:
+					performance = "Performance Index = 0/0"
+				else:
+					x, y = map(sum, zip(*z))
+					performance = "Performance Index = %d/%d = %.2f%%" % (x,y,100.0*x/y)
 			return prettytable(data,heading,performance)
 		def select(self,words):
 			words = [word for word in words if word!=""]
