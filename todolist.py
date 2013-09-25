@@ -187,7 +187,7 @@ def exports():
 			deadline = "No Limit" if deadline=="none" else (deadline or "")
 			stat = self.status().title()
 			return [groupname, text, tags, freq, deadline, stat]
-		sg = "periodic birthdays".split() # special group names
+		sg = "longterm birthdays periodic".split() # special group names
 		def tag_add(self,tag):
 			if istagstr(tag) and tag not in self.__tags:
 				self.update( " ".join(self.__raw.split()+[prefix+tag]) )

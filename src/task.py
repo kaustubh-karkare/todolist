@@ -86,7 +86,7 @@ class Task:
 		stat = self.status().title()
 		return [groupname, text, tags, freq, deadline, stat]
 
-	sg = "periodic birthdays".split() # special group names
+	sg = "longterm birthdays periodic".split() # special group names
 
 	def tag_add(self,tag):
 		if istagstr(tag) and tag not in self.__tags:
