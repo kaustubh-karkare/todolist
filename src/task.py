@@ -61,7 +61,9 @@ class Task:
 
 		self.__raw = " ".join(self.__raw)
 
-	def __eq__(self,other): return isinstance(other,self.__class__) and self.__raw==other.__raw
+	def __eq__(self,other):
+		return isinstance(other,self.__class__) and self.__raw==other.__raw and \
+			(self.group.name if self.group else "")==(other.group.name if other.group else "")
 	def __ne__(self,other): return not self.__eq__(other)
 	def __hash__(self): return self.__raw.__hash__()
 	def __repr__(self): return self.__raw
