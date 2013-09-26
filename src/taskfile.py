@@ -15,6 +15,7 @@ relative = {
 
 	"future": lambda ref, now: ref<now,
 	"past": lambda ref, now: ref>now,
+	"tillnow": lambda ref, now: ref>=now,
 }
 
 absolute = {

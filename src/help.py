@@ -29,7 +29,7 @@ Operation & TaskGroup Options
 	TaskGroup = Either a specific date in the format YYYY-MM-DD, or
 		today | tomorrow | thisweek | yesterday | lastweek | nextweek |
 		thismonth | lastmonth | nextmonth | YYYY-MM | YYYY | forever |
-		future | past | periodic | birthdays
+		future | past | periodic | birthdays | longterm
 	Note: You will need to specify an exact date (and not a range) while
 		adding new tasks. By default, tasks are added to the group
 		corresponding to the current date.

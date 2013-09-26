@@ -311,6 +311,7 @@ def exports():
 		"lastmonth": lambda ref, now: Date.monthdiff(ref,now)==-1,
 		"future": lambda ref, now: ref<now,
 		"past": lambda ref, now: ref>now,
+		"tillnow": lambda ref, now: ref>=now,
 	}
 	absolute = {
 		"month": lambda ref, now: map(int,ref.split("-"))==[now.year,now.month],
@@ -485,7 +486,7 @@ def exports():
 		TaskGroup = Either a specific date in the format YYYY-MM-DD, or
 			today | tomorrow | thisweek | yesterday | lastweek | nextweek |
 			thismonth | lastmonth | nextmonth | YYYY-MM | YYYY | forever |
-			future | past | periodic | birthdays
+			future | past | periodic | birthdays | longterm
 		Note: You will need to specify an exact date (and not a range) while
 			adding new tasks. By default, tasks are added to the group
 			corresponding to the current date.
