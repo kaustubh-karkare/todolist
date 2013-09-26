@@ -69,7 +69,7 @@ class Task:
 	def __repr__(self): return self.__raw
 	def __contains__(self,word):
 		suffix = "" if len(filter(lambda tag: tag in status, self.__tags))!=0 \
-			else " "+prefix+"pending"
+			else " "+prefix+self.status()
 		return isinstance(word,str) and word.lower() in self.__raw.lower()+suffix
 
 	def raw(self): return self.__raw
