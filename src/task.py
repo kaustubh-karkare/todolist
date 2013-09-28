@@ -23,8 +23,9 @@ def istag(tag): return tag.startswith(prefix) and istagstr(tag[prefixlen:])
 
 class Task:
 
-	def __init__(self,raw,group,date):
+	def __init__(self,raw,group,date,nodeadline):
 		self.__date = date
+		self.__nodeadline = nodeadline
 		self.group = group
 		self.update(raw)
 
@@ -94,8 +95,8 @@ class Task:
 			freq = ", ".join([tag for tag in self.__tags if tag in periodic])
 			return [groupname, text, tags, freq]
 		else:
-			deadline = "deadline" in self.__tags and self.__tags["deadline"]
-			deadline = "No Limit" if deadline=="none" else (deadline or "")
+			deadline = "deadline" in self.__tags and self.__tags["deadline"] or ""
+			if (not deadline and self.__nodeadline) or deadline=="none": deadline = "No Limit"
 			stat = self.status().title()
 			return [groupname, text, tags, deadline, stat, result]
 
@@ -122,21 +123,25 @@ class Task:
 		result = next((tag for tag in self.__tags if tag in status),None)
 		if result: return result
 		deadline = "deadline" in self.__tags and self.__tags["deadline"]
-		if deadline: deadline = deadline!="none" and Date.deconvert(deadline)
-		else: deadline = self.group and Date.regexp.match(self.group.name) and Date.deconvert(self.group.name)
-		if not deadline or self.__date.date<=deadline: return "pending"
+		if deadline:
+			if deadline=="none": return "pending"
+			deadline = Date.deconvert(deadline)
+		else:
+			if self.__nodeadline: return "pending"
+			deadline = self.group and Date.regexp.match(self.group.name) and Date.deconvert(self.group.name)
+		if deadline and self.__date.date<=deadline: return "pending"
 		return "failed"
 
 	reports = {"failed":(-0.5,1),"impossible":(0,0),"pending":(0,1),"done":(1,1),"exceeded":(+1.5,1)}
 	def report(self): return self.reports[self.status()]
 
-	def carryover(self,nodeadline):
+	def carryover(self):
 		if any(i in status for i in self.__tags): return False
 		deadline = "deadline" in self.__tags and self.__tags["deadline"]
 		if deadline:
 			if deadline=="none": return True
 			else: return Date.regexp.match(deadline) and self.__date.date<Date.deconvert(deadline)
-		elif nodeadline: return True
+		elif self.__nodeadline: return True
 
 	def __tagfilter(self,tags={}):
 		temp = []

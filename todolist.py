@@ -139,8 +139,9 @@ def exports():
 	def istagstr(str): return len(str)>0 and len(str.split())==1
 	def istag(tag): return tag.startswith(prefix) and istagstr(tag[prefixlen:])
 	class Task:
-		def __init__(self,raw,group,date):
+		def __init__(self,raw,group,date,nodeadline):
 			self.__date = date
+			self.__nodeadline = nodeadline
 			self.group = group
 			self.update(raw)
 		def update(self,raw):
@@ -203,8 +204,8 @@ def exports():
 				freq = ", ".join([tag for tag in self.__tags if tag in periodic])
 				return [groupname, text, tags, freq]
 			else:
-				deadline = "deadline" in self.__tags and self.__tags["deadline"]
-				deadline = "No Limit" if deadline=="none" else (deadline or "")
+				deadline = "deadline" in self.__tags and self.__tags["deadline"] or ""
+				if (not deadline and self.__nodeadline) or deadline=="none": deadline = "No Limit"
 				stat = self.status().title()
 				return [groupname, text, tags, deadline, stat, result]
 		sg = "longterm birthdays periodic".split() # special group names
@@ -226,19 +227,23 @@ def exports():
 			result = next((tag for tag in self.__tags if tag in status),None)
 			if result: return result
 			deadline = "deadline" in self.__tags and self.__tags["deadline"]
-			if deadline: deadline = deadline!="none" and Date.deconvert(deadline)
-			else: deadline = self.group and Date.regexp.match(self.group.name) and Date.deconvert(self.group.name)
-			if not deadline or self.__date.date<=deadline: return "pending"
+			if deadline:
+				if deadline=="none": return "pending"
+				deadline = Date.deconvert(deadline)
+			else:
+				if self.__nodeadline: return "pending"
+				deadline = self.group and Date.regexp.match(self.group.name) and Date.deconvert(self.group.name)
+			if deadline and self.__date.date<=deadline: return "pending"
 			return "failed"
 		reports = {"failed":(-0.5,1),"impossible":(0,0),"pending":(0,1),"done":(1,1),"exceeded":(+1.5,1)}
 		def report(self): return self.reports[self.status()]
-		def carryover(self,nodeadline):
+		def carryover(self):
 			if any(i in status for i in self.__tags): return False
 			deadline = "deadline" in self.__tags and self.__tags["deadline"]
 			if deadline:
 				if deadline=="none": return True
 				else: return Date.regexp.match(deadline) and self.__date.date<Date.deconvert(deadline)
-			elif nodeadline: return True
+			elif self.__nodeadline: return True
 		def __tagfilter(self,tags={}):
 			temp = []
 			for word in self.__raw.split():
@@ -386,7 +391,7 @@ def exports():
 			group = self.group(self.__date.str())
 			carry = []
 			for task in group.task_list():
-				temp = task.carryover(self.__nodeadline)
+				temp = task.carryover()
 				if not temp: continue
 				carry.append(task)
 				group.task_remove(task)
@@ -406,7 +411,7 @@ def exports():
 					if temp: group.task_add(temp)
 				if self.__date.date < today.date:
 					for task in group.task_list():
-						temp = task.carryover(self.__nodeadline)
+						temp = task.carryover()
 						if not temp: continue
 						group.task_remove(task)
 						carry.append(task)
@@ -454,7 +459,7 @@ def exports():
 				group = TaskGroup([],name)
 				for line in self.__extract(self.__position[name]).split("\n"):
 					if line.strip()!="":
-						group.task_add(Task(line[1:],group,self.__date))
+						group.task_add(Task(line[1:],group,self.__date,self.__nodeadline))
 				return group
 			elif name in Task.sg or Date.regexp.match(name):
 				return TaskGroup([],name)
@@ -634,7 +639,7 @@ def exports():
 				while True:
 					line = prompt("Add Task: ")
 					if line.strip()!="": break
-			task = Task(line,group,args.date)
+			task = Task(line,group,args.date,args.nodeadline)
 			group.task_add(task)
 			taskfile.update(group)
 			print group.tabulate()

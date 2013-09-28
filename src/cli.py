@@ -83,7 +83,7 @@ def __main():
 				line = prompt("Add Task: ")
 				if line.strip()!="": break
 
-		task = Task(line,group,args.date)
+		task = Task(line,group,args.date,args.nodeadline)
 		group.task_add(task)
 		taskfile.update(group)
 		print group.tabulate()
