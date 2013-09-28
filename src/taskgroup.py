@@ -24,20 +24,23 @@ class TaskGroup:
 		if isinstance(task,Task) and task in self.__tasks:
 			self.__tasks.remove(task)
 
-	def tabulate(self, index=False, heading=None, performance=False):
-		data = [Task.table_heading]
-		data.extend( task.table_fields() for task in self.task_list() )
+	def tabulate(self, index=False):
+		data, tasks = [], self.task_list()
+		if len(tasks)==0: return "No Matching Tasks\n"
+		else: data.append(tasks[0].table_heading())
+		data.extend(task.table_fields() for task in tasks)
 		if index:
 			for i,row in enumerate(data):
 				data[i] = ["Index" if i==0 else str(i-1)]+data[i]
-		if performance:
-			z = [task.report() for task in self.task_list()]
-			if len(z)==0:
-				performance = "Performance Index = 0/0"
-			else:
-				x, y = map(sum, zip(*z))
-				performance = "Performance Index = %d/%d = %.2f%%" % (x,y,100.0*x/y)
-		return prettytable(data,heading,performance)
+		return prettytable(data)
+
+	def report(self):
+		z = [task.report() for task in self.task_list()]
+		if len(z)==0:
+			return "Performance Index = 0/0"
+		else:
+			x, y = map(sum, zip(*z))
+			return "Performance Index = %.2f%%" % (100.0*x/y)
 
 	def select(self,words):
 		words = [word for word in words if word!=""]

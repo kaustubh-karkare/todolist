@@ -7,7 +7,7 @@ __dir__ = os.path.join(*os.path.split(__file__)[:-1]) \
 
 # Command Line Argument Validation
 
-operations = "list add edit delete move do fail help".split()
+operations = "list add edit delete move do fail help report".split()
 
 ap = argparse.ArgumentParser(description="A Command Line ToDoList Manager", add_help=False)
 ap.add_argument("data", nargs="*", default=[])
@@ -101,7 +101,7 @@ def __main():
 			group = taskfile.select(args.data[0], args.data[1:])
 			if not group:
 				group = taskfile.select("today", args.data)
-		if operation!="list":
+		if operation not in ("list","report"):
 			tasks = group.task_list()
 			if len(tasks)==0:
 				raise Exception("No Matching Task")
@@ -120,7 +120,10 @@ def __main():
 			print TaskGroup([task]).tabulate()
 
 		if operation=="list":
-			print group.tabulate(performance=True)
+			print group.tabulate()
+
+		elif operation=="report":
+			print group.report(), "\n"
 
 		elif operation=="edit":
 			while True:
@@ -153,12 +156,12 @@ def __main():
 			task.tag_remove("done")
 			taskfile.update(task.group)
 
-		if operation not in ("list","delete"):
+		if operation not in ("list","delete","report"):
 			print TaskGroup([task]).tabulate()
 	
 	if args.nosave or not realdate:
 		pass
-	elif operation=="list":
+	elif operation in ("list","report"):
 		taskfile.save()
 	elif confirm():
 		taskfile.save()

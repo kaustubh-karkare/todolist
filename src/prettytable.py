@@ -35,6 +35,7 @@ def prettytable(rows,header=None,footer=None):
 	lword = [-1]*len(width) # largest word
 	for row in rows:
 		for j, col in enumerate(row):
+			if j>=len(width): continue
 			width[j] = max(width[j],len(col))
 			lword[j] = max(lword[j], max(len(word) for word in col.split(" ")) )
 
@@ -43,7 +44,7 @@ def prettytable(rows,header=None,footer=None):
 		if x>0:
 			y = [i for i in range(len(lword)) if lword[i]<width[i]] # columns to be resized
 			z = int(math.ceil(float(x)/len(y))) # difference in width
-			for i in y: width[i] = max(width[i]-z,10)
+			for i in y: width[i] = max(width[i]-z,lword[i])
 
 	result = ""
 	line = (jc)+(jc).join(hc*(i+2) for i in width)+(jc)+nl

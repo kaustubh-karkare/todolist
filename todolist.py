@@ -4,7 +4,7 @@ def define(scope):
 		scope.update(exports)
 	return actual
 define = define(vars())
-import fcntl, argparse, struct, textwrap, termios, datetime, sys, re, readline, os, math
+import fcntl, argparse, struct, textwrap, termios, datetime, sys, re, itertools, readline, os, math
 def exports():
 	exports = {}
 	def __get_terminal_size_linux():
@@ -36,6 +36,7 @@ def exports():
 		lword = [-1]*len(width) # largest word
 		for row in rows:
 			for j, col in enumerate(row):
+				if j>=len(width): continue
 				width[j] = max(width[j],len(col))
 				lword[j] = max(lword[j], max(len(word) for word in col.split(" ")) )
 		if terminal:
@@ -43,7 +44,7 @@ def exports():
 			if x>0:
 				y = [i for i in range(len(lword)) if lword[i]<width[i]] # columns to be resized
 				z = int(math.ceil(float(x)/len(y))) # difference in width
-				for i in y: width[i] = max(width[i]-z,10)
+				for i in y: width[i] = max(width[i]-z,lword[i])
 		result = ""
 		line = (jc)+(jc).join(hc*(i+2) for i in width)+(jc)+nl
 		for i, row in enumerate(rows):
@@ -124,7 +125,7 @@ def exports():
 	}
 	for index,name in enumerate("monday tuesday wednesday thursday friday saturday sunday".split()):
 		periodic[name] = (lambda x: lambda date: date.weekday()==x)(index)
-	status = "failed impossible done".split()
+	status = "impossible failed exceeded done".split()
 	prefix = "+"
 	prefixlen = len(prefix)
 	tagequal = "="
@@ -177,18 +178,27 @@ def exports():
 				else " "+prefix+self.status()
 			return isinstance(word,str) and word.lower() in self.__raw.lower()+suffix
 		def raw(self): return self.__raw
-		table_heading = "Date Task Tags Periodicity Deadline Status".title().split()
+		def table_heading(self):
+			groupname = self.group.name if self.group else ""
+			if groupname=="periodic": head = "Date Task Tags Periodicity"
+			else: head = "Date Task Tags Deadline Status Result"
+			return head.title().split()
 		def table_fields(self):
 			groupname = self.group.name if self.group else ""
-			text = " ".join(word for word in self.__raw.split() if not istag(word))
+			words = [word for word in self.__raw.split() if not istag(word)]
+			text = [word for word in itertools.takewhile(lambda x: x!="//", words)]
+			text, result = " ".join(text), " ".join(words[len(text)+1:])
 			tags = ", ".join(tag+":"+self.__tags[tag] if self.__tags[tag] else tag \
 				for tag in self.__tags \
 				if tag not in status and tag not in periodic and tag!="deadline")
-			freq = ", ".join([tag for tag in self.__tags if tag in periodic])
-			deadline = "deadline" in self.__tags and self.__tags["deadline"]
-			deadline = "No Limit" if deadline=="none" else (deadline or "")
-			stat = self.status().title()
-			return [groupname, text, tags, freq, deadline, stat]
+			if groupname=="periodic":
+				freq = ", ".join([tag for tag in self.__tags if tag in periodic])
+				return [groupname, text, tags, freq]
+			else:
+				deadline = "deadline" in self.__tags and self.__tags["deadline"]
+				deadline = "No Limit" if deadline=="none" else (deadline or "")
+				stat = self.status().title()
+				return [groupname, text, tags, deadline, stat, result]
 		sg = "longterm birthdays periodic".split() # special group names
 		def tag_add(self,tag):
 			if istagstr(tag) and tag not in self.__tags:
@@ -212,9 +222,8 @@ def exports():
 			else: deadline = self.group and Date.regexp.match(self.group.name) and Date.deconvert(self.group.name)
 			if not deadline or self.__date.date<=deadline: return "pending"
 			return "failed"
-		def report(self):
-			x = self.status()
-			return (int(x=="done"),int(x!="impossible"))
+		reports = {"failed":(-0.5,1),"impossible":(0,0),"pending":(0,1),"done":(1,1),"exceeded":(+1.5,1)}
+		def report(self): return self.reports[self.status()]
 		def carryover(self):
 			if any(i in status for i in self.__tags): return
 			deadline = "deadline" in self.__tags and self.__tags["deadline"]
@@ -270,20 +279,22 @@ def exports():
 		def task_remove(self,task):
 			if isinstance(task,Task) and task in self.__tasks:
 				self.__tasks.remove(task)
-		def tabulate(self, index=False, heading=None, performance=False):
-			data = [Task.table_heading]
-			data.extend( task.table_fields() for task in self.task_list() )
+		def tabulate(self, index=False):
+			data, tasks = [], self.task_list()
+			if len(tasks)==0: return "No Matching Tasks\n"
+			else: data.append(tasks[0].table_heading())
+			data.extend(task.table_fields() for task in tasks)
 			if index:
 				for i,row in enumerate(data):
 					data[i] = ["Index" if i==0 else str(i-1)]+data[i]
-			if performance:
-				z = [task.report() for task in self.task_list()]
-				if len(z)==0:
-					performance = "Performance Index = 0/0"
-				else:
-					x, y = map(sum, zip(*z))
-					performance = "Performance Index = %d/%d = %.2f%%" % (x,y,100.0*x/y)
-			return prettytable(data,heading,performance)
+			return prettytable(data)
+		def report(self):
+			z = [task.report() for task in self.task_list()]
+			if len(z)==0:
+				return "Performance Index = 0/0"
+			else:
+				x, y = map(sum, zip(*z))
+				return "Performance Index = %.2f%%" % (100.0*x/y)
 		def select(self,words):
 			words = [word for word in words if word!=""]
 			if len(words)==0: return self.__class__( self.__tasks )
@@ -555,7 +566,7 @@ def exports():
 	exports = {}
 	__dir__ = os.path.join(*os.path.split(__file__)[:-1]) \
 		if os.path.basename(__file__)!=__file__ else "."
-	operations = "list add edit delete move do fail help".split()
+	operations = "list add edit delete move do fail help report".split()
 	ap = argparse.ArgumentParser(description="A Command Line ToDoList Manager", add_help=False)
 	ap.add_argument("data", nargs="*", default=[])
 	ap.add_argument("-h","--help", action="store_true", default=False)
@@ -628,7 +639,7 @@ def exports():
 				group = taskfile.select(args.data[0], args.data[1:])
 				if not group:
 					group = taskfile.select("today", args.data)
-			if operation!="list":
+			if operation not in ("list","report"):
 				tasks = group.task_list()
 				if len(tasks)==0:
 					raise Exception("No Matching Task")
@@ -645,7 +656,9 @@ def exports():
 			if operation in ("edit","delete","move"):
 				print TaskGroup([task]).tabulate()
 			if operation=="list":
-				print group.tabulate(performance=True)
+				print group.tabulate()
+			elif operation=="report":
+				print group.report(), "\n"
 			elif operation=="edit":
 				while True:
 					line = prompt("Edit Task: ",str(task))
@@ -672,11 +685,11 @@ def exports():
 				task.tag_remove("impossible")
 				task.tag_remove("done")
 				taskfile.update(task.group)
-			if operation not in ("list","delete"):
+			if operation not in ("list","delete","report"):
 				print TaskGroup([task]).tabulate()
 		if args.nosave or not realdate:
 			pass
-		elif operation=="list":
+		elif operation in ("list","report"):
 			taskfile.save()
 		elif confirm():
 			taskfile.save()
