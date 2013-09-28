@@ -37,10 +37,10 @@ class TaskGroup:
 	def report(self):
 		z = [task.report() for task in self.task_list()]
 		if len(z)==0:
-			return "Performance Index = 0/0"
+			return "Performance Index = 0/0\n"
 		else:
 			x, y = map(sum, zip(*z))
-			return "Performance Index = %.2f%%" % (100.0*x/y)
+			return "Performance Index = %.2f%%\n" % (100.0*x/y)
 
 	def select(self,words):
 		words = [word for word in words if word!=""]

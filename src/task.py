@@ -31,6 +31,7 @@ class Task:
 	def update(self,raw):
 		self.__raw = []
 		self.__tags = {}
+		groupname = self.group.name if self.group else ""
 
 		for word in raw.split():
 			if not istag(word):
@@ -48,7 +49,7 @@ class Task:
 				if name in self.__tags:
 					continue
 				elif name=="deadline" or name=="birthday":
-					if value=="none":
+					if name=="deadline" and (value=="none" or groupname in ("periodic","longterm")):
 						self.__raw.append(prefix+name+tagequal+value)
 						self.__tags[name] = value
 						continue
@@ -129,14 +130,15 @@ class Task:
 	reports = {"failed":(-0.5,1),"impossible":(0,0),"pending":(0,1),"done":(1,1),"exceeded":(+1.5,1)}
 	def report(self): return self.reports[self.status()]
 
-	def carryover(self):
-		if any(i in status for i in self.__tags): return
+	def carryover(self,nodeadline):
+		if any(i in status for i in self.__tags): return False
 		deadline = "deadline" in self.__tags and self.__tags["deadline"]
-		if deadline and Date.regexp.match(deadline) \
-			and self.__date.date<Date.deconvert(deadline) or deadline=="none":
-			return True
+		if deadline:
+			if deadline=="none": return True
+			else: return Date.regexp.match(deadline) and self.__date.date<Date.deconvert(deadline)
+		elif nodeadline: return True
 
-	def __nostatus(self,tags={}):
+	def __tagfilter(self,tags={}):
 		temp = []
 		for word in self.__raw.split():
 			if not istag(word): temp.append(word)
@@ -144,7 +146,7 @@ class Task:
 				index = word.find(tagequal)
 				if index==-1: tag = word[prefixlen:]
 				else: tag = word[prefixlen:index]
-				if tag in status: pass
+				if tag in status or tag in periodic: pass
 				elif tag in tags and index!=-1:
 					temp.append(prefix+tag+tagequal+tags[tag])
 				else: temp.append(word)
@@ -157,12 +159,12 @@ class Task:
 		if not self.group or self.group.name!="periodic": return
 		tags = filter(lambda tag: tag in periodic, self.__tags)
 		if not any(periodic[name](self.__date.date) for name in tags): return
-		return self.__class__( self.__nostatus(), group, self.__date )
+		return self.__class__( self.__tagfilter(), group, self.__date )
 
 	def birthday(self,group):
 		if "birthday" not in self.__tags: return
 		d1, d2 = self.__date.date, Date.deconvert(self.__tags["birthday"])
 		if (d1.month, d1.day)!=(d2.month, d2.day): return
-		return self.__class__( self.__nostatus({"deadline":"none"}), group, self.__date )
+		return self.__class__( self.__tagfilter({"deadline":"none"}), group, self.__date )
 
 exports["Task"] = Task

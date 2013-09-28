@@ -7,6 +7,13 @@ class Date:
 		"yesterday": -1,
 		"today": 0,
 		"tomorrow": 1,
+		"+1day": 1,
+		"+2days": 2,
+		"+3days": 3,
+		"+4days": 4,
+		"+5days": 5,
+		"+6days": 6,
+		"+7days": 7,
 	}
 
 	regexp = re.compile("\d{4}-\d{2}-\d{2}")

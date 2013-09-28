@@ -14,7 +14,8 @@ ap.add_argument("data", nargs="*", default=[])
 ap.add_argument("-h","--help", action="store_true", default=False)
 ap.add_argument("-f","--file", default="./todolist.txt")
 ap.add_argument("-n","--nosave", action="store_true", default=False)
-ap.add_argument("-d","--date", type=Date, default="today")
+ap.add_argument("--date", type=Date, default="today")
+ap.add_argument("--nodeadline", action="store_true", default=False)
 
 # User Interaction Functions
 
@@ -65,7 +66,7 @@ def __main():
 		sys.exit(0)
 
 	realdate = args.date.date==datetime.date.today()
-	taskfile = TaskFile(args.file,args.date)
+	taskfile = TaskFile(args.file,args.date,args.nodeadline)
 
 	if operation=="add":
 
@@ -123,7 +124,7 @@ def __main():
 			print group.tabulate()
 
 		elif operation=="report":
-			print group.report(), "\n"
+			print group.report()
 
 		elif operation=="edit":
 			while True:

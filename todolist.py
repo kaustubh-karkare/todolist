@@ -74,6 +74,13 @@ def exports():
 			"yesterday": -1,
 			"today": 0,
 			"tomorrow": 1,
+			"+1day": 1,
+			"+2days": 2,
+			"+3days": 3,
+			"+4days": 4,
+			"+5days": 5,
+			"+6days": 6,
+			"+7days": 7,
 		}
 		regexp = re.compile("\d{4}-\d{2}-\d{2}")
 		oneday = datetime.timedelta(1)
@@ -139,6 +146,7 @@ def exports():
 		def update(self,raw):
 			self.__raw = []
 			self.__tags = {}
+			groupname = self.group.name if self.group else ""
 			for word in raw.split():
 				if not istag(word):
 					self.__raw.append(word)
@@ -155,7 +163,7 @@ def exports():
 					if name in self.__tags:
 						continue
 					elif name=="deadline" or name=="birthday":
-						if value=="none":
+						if name=="deadline" and (value=="none" or groupname in ("periodic","longterm")):
 							self.__raw.append(prefix+name+tagequal+value)
 							self.__tags[name] = value
 							continue
@@ -224,13 +232,14 @@ def exports():
 			return "failed"
 		reports = {"failed":(-0.5,1),"impossible":(0,0),"pending":(0,1),"done":(1,1),"exceeded":(+1.5,1)}
 		def report(self): return self.reports[self.status()]
-		def carryover(self):
-			if any(i in status for i in self.__tags): return
+		def carryover(self,nodeadline):
+			if any(i in status for i in self.__tags): return False
 			deadline = "deadline" in self.__tags and self.__tags["deadline"]
-			if deadline and Date.regexp.match(deadline) \
-				and self.__date.date<Date.deconvert(deadline) or deadline=="none":
-				return True
-		def __nostatus(self,tags={}):
+			if deadline:
+				if deadline=="none": return True
+				else: return Date.regexp.match(deadline) and self.__date.date<Date.deconvert(deadline)
+			elif nodeadline: return True
+		def __tagfilter(self,tags={}):
 			temp = []
 			for word in self.__raw.split():
 				if not istag(word): temp.append(word)
@@ -238,7 +247,7 @@ def exports():
 					index = word.find(tagequal)
 					if index==-1: tag = word[prefixlen:]
 					else: tag = word[prefixlen:index]
-					if tag in status: pass
+					if tag in status or tag in periodic: pass
 					elif tag in tags and index!=-1:
 						temp.append(prefix+tag+tagequal+tags[tag])
 					else: temp.append(word)
@@ -250,12 +259,12 @@ def exports():
 			if not self.group or self.group.name!="periodic": return
 			tags = filter(lambda tag: tag in periodic, self.__tags)
 			if not any(periodic[name](self.__date.date) for name in tags): return
-			return self.__class__( self.__nostatus(), group, self.__date )
+			return self.__class__( self.__tagfilter(), group, self.__date )
 		def birthday(self,group):
 			if "birthday" not in self.__tags: return
 			d1, d2 = self.__date.date, Date.deconvert(self.__tags["birthday"])
 			if (d1.month, d1.day)!=(d2.month, d2.day): return
-			return self.__class__( self.__nostatus({"deadline":"none"}), group, self.__date )
+			return self.__class__( self.__tagfilter({"deadline":"none"}), group, self.__date )
 	exports["Task"] = Task
 	return exports
 define(exports())
@@ -291,10 +300,10 @@ def exports():
 		def report(self):
 			z = [task.report() for task in self.task_list()]
 			if len(z)==0:
-				return "Performance Index = 0/0"
+				return "Performance Index = 0/0\n"
 			else:
 				x, y = map(sum, zip(*z))
-				return "Performance Index = %.2f%%" % (100.0*x/y)
+				return "Performance Index = %.2f%%\n" % (100.0*x/y)
 		def select(self,words):
 			words = [word for word in words if word!=""]
 			if len(words)==0: return self.__class__( self.__tasks )
@@ -331,9 +340,10 @@ def exports():
 	absolute["month"].regexp = re.compile("^\d{4}-\d{2}$")
 	absolute["year"].regexp = re.compile("^\d{4}$")
 	class TaskFile:
-		def __init__(self,name,date):
+		def __init__(self,name,date,nodeadline):
 			self.__name = name
 			self.__date = date
+			self.__nodeadline = nodeadline
 			self.load()
 		def load(self):
 			if not os.path.isfile(self.__name):
@@ -376,7 +386,7 @@ def exports():
 			group = self.group(self.__date.str())
 			carry = []
 			for task in group.task_list():
-				temp = task.carryover()
+				temp = task.carryover(self.__nodeadline)
 				if not temp: continue
 				carry.append(task)
 				group.task_remove(task)
@@ -396,7 +406,7 @@ def exports():
 					if temp: group.task_add(temp)
 				if self.__date.date < today.date:
 					for task in group.task_list():
-						temp = task.carryover()
+						temp = task.carryover(self.__nodeadline)
 						if not temp: continue
 						group.task_remove(task)
 						carry.append(task)
@@ -572,7 +582,8 @@ def exports():
 	ap.add_argument("-h","--help", action="store_true", default=False)
 	ap.add_argument("-f","--file", default="./todolist.txt")
 	ap.add_argument("-n","--nosave", action="store_true", default=False)
-	ap.add_argument("-d","--date", type=Date, default="today")
+	ap.add_argument("--date", type=Date, default="today")
+	ap.add_argument("--nodeadline", action="store_true", default=False)
 	def confirm(msg="Are you sure?"):
 		while True:
 			x = raw_input(msg+" (yes/no) ")
@@ -610,7 +621,7 @@ def exports():
 			print help.full
 			sys.exit(0)
 		realdate = args.date.date==datetime.date.today()
-		taskfile = TaskFile(args.file,args.date)
+		taskfile = TaskFile(args.file,args.date,args.nodeadline)
 		if operation=="add":
 			if len(args.data)>0:
 				group = taskfile.group(args.data[0])
@@ -658,7 +669,7 @@ def exports():
 			if operation=="list":
 				print group.tabulate()
 			elif operation=="report":
-				print group.report(), "\n"
+				print group.report()
 			elif operation=="edit":
 				while True:
 					line = prompt("Edit Task: ",str(task))

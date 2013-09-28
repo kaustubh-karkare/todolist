@@ -28,10 +28,11 @@ absolute["year"].regexp = re.compile("^\d{4}$")
 
 class TaskFile:
 
-	def __init__(self,name,date):
+	def __init__(self,name,date,nodeadline):
 
 		self.__name = name
 		self.__date = date
+		self.__nodeadline = nodeadline
 		self.load()
 
 	def load(self):
@@ -86,7 +87,7 @@ class TaskFile:
 		group = self.group(self.__date.str())
 		carry = []
 		for task in group.task_list():
-			temp = task.carryover()
+			temp = task.carryover(self.__nodeadline)
 			if not temp: continue
 			carry.append(task)
 			group.task_remove(task)
@@ -114,7 +115,7 @@ class TaskFile:
 			# for all iterations except the last, calculate carry
 			if self.__date.date < today.date:
 				for task in group.task_list():
-					temp = task.carryover()
+					temp = task.carryover(self.__nodeadline)
 					if not temp: continue
 					group.task_remove(task)
 					carry.append(task)
